@@ -29,7 +29,7 @@ export default function Lobby() {
   }
 
   return (
-    <div className="min-h-full flex flex-col p-4 pb-6 safe-area-padding">
+    <div className="min-h-full flex flex-col p-4 pt-6 pb-6 safe-area-padding">
       {/* Header with Room Code */}
       <div className="flex-shrink-0 bg-white/10 rounded-xl border border-white/20 p-6 mb-4 shadow-xl">
         <div className="text-center">

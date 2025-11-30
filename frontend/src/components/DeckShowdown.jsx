@@ -65,7 +65,7 @@ export default function DeckShowdown() {
         {/* THE DECK's Hand - Top */}
         <div className="flex flex-col items-center flex-shrink-0">
           <p className="text-white/60 text-sm mb-3 font-semibold uppercase tracking-wide">THE DECK</p>
-          <div className={`flex justify-center mb-3 ${!playerWon && resultVisible ? 'gap-4 sm:gap-6' : 'space-x-2 sm:space-x-3'} min-h-[112px]`}>
+          <div className={`flex justify-center mb-3 ${!playerWon && resultVisible ? 'gap-6 sm:gap-8' : 'space-x-2 sm:space-x-3'} min-h-[112px]`}>
             {dealerCardsVisible ? (
               showdownData.deckCards.map((card, idx) => (
                 <Card 
@@ -95,7 +95,7 @@ export default function DeckShowdown() {
         {/* Player's Hand - Bottom */}
         <div className={`flex flex-col items-center flex-shrink-0 ${phase === 'transition' || phase === 'dealing' || phase === 'result' ? 'showdown-player-cards' : ''}`}>
           <p className="text-white/60 text-sm mb-3 font-semibold uppercase tracking-wide">{showdownData.player.playerName}</p>
-          <div className={`flex justify-center mb-3 ${isWinner && resultVisible ? 'gap-4 sm:gap-6' : 'space-x-2 sm:space-x-3'}`}>
+          <div className={`flex justify-center mb-3 ${isWinner && resultVisible ? 'gap-6 sm:gap-8' : 'space-x-2 sm:space-x-3'}`}>
             {showdownData.playerCards.map((card, idx) => (
               <Card 
                 key={idx} 

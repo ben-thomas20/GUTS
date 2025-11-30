@@ -71,7 +71,7 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Modern gradient backgrounds */
+/* Modern gradient backgrounds - fixed to cover full scrollable area */
 .gradient-mesh {
   background: 
     radial-gradient(at 27% 37%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
@@ -80,7 +80,12 @@ body {
     radial-gradient(at 10% 29%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
     radial-gradient(at 97% 96%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
     radial-gradient(at 33% 50%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 79% 53%, rgba(245, 158, 11, 0.15) 0px, transparent 50%);
+    radial-gradient(at 79% 53%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
+    #000000;
+  background-attachment: fixed;
+  background-size: 100% 100%;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 /* Card Dealing Animation */
