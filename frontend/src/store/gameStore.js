@@ -84,7 +84,8 @@ export const useGameStore = create((set, get) => ({
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: Infinity, // Keep trying to reconnect indefinitely
+      timeout: 20000
     })
     
     socket.on('connect', () => {
@@ -352,9 +353,14 @@ export const useGameStore = create((set, get) => ({
   },
   
   joinRoom: (roomCode, playerToken, playerName) => {
-    const { socket } = get()
-    if (socket) {
+    const { socket, connected } = get()
+    if (socket && connected) {
       socket.emit('join_room', { roomCode, playerToken, playerName })
+    } else if (socket) {
+      // Socket exists but not connected yet - wait for connection
+      socket.once('connect', () => {
+        socket.emit('join_room', { roomCode, playerToken, playerName })
+      })
     }
   },
   

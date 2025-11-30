@@ -64,19 +64,20 @@ class GameManager {
     // Check if player already exists (reconnection)
     let player = game.players.find(p => p.token === playerToken);
     
-    // Only allow new players to join if game is in lobby
-    if (!player && game.state !== 'lobby') {
-      socket.emit('error', { message: 'Game already started' });
-      return;
-    }
-    
-    // Only check player limit for new players
-    if (!player && game.players.length >= 8) {
-      socket.emit('error', { message: 'Game is full' });
-      return;
-    }
-    
     if (!player) {
+      // New player joining
+      // Only allow new players to join if game is in lobby
+      if (game.state !== 'lobby') {
+        socket.emit('error', { message: 'Game already started' });
+        return;
+      }
+      
+      // Only check player limit for new players
+      if (game.players.length >= 8) {
+        socket.emit('error', { message: 'Game is full' });
+        return;
+      }
+      
       player = {
         id: uuidv4(),
         token: playerToken,
@@ -89,12 +90,47 @@ class GameManager {
       };
       game.players.push(player);
     } else {
-      // Reconnection
+      // Reconnection - reactivate player
       player.socketId = socket.id;
       player.isActive = true;
+      // Update name in case it changed
+      player.name = playerName;
       // Ensure buyInAmount exists for reconnecting players
       if (!player.buyInAmount) {
         player.buyInAmount = 20;
+      }
+      
+      // If reconnecting during active game, send current game state
+      if (game.state === 'playing') {
+        // Send current round info
+        socket.emit('round_started', {
+          round: game.round,
+          pot: game.pot,
+          isNothingRound: game.isNothingRound,
+          players: game.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            balance: p.balance,
+            isActive: p.isActive
+          }))
+        });
+        
+        // Send player's cards if they have them
+        const playerCards = game.currentHands.get(player.id);
+        if (playerCards) {
+          socket.emit('cards_dealt', {
+            cards: playerCards,
+            round: game.round,
+            isNothingRound: game.isNothingRound,
+            playerId: player.id
+          });
+        }
+        
+        // Send timer state if active
+        if (game.decisionTimer) {
+          // Calculate remaining time (approximate)
+          socket.emit('timer_started', { duration: 30 });
+        }
       }
     }
     
@@ -590,10 +626,6 @@ class GameManager {
   }
   
   handleLeaveGame(socket) {
-    this.handleDisconnect(socket);
-  }
-  
-  handleDisconnect(socket) {
     const playerInfo = this.socketPlayers.get(socket.id);
     if (!playerInfo) return;
     
@@ -602,12 +634,7 @@ class GameManager {
     
     const player = game.players.find(p => p.id === playerInfo.playerId);
     if (player) {
-      // Mark player as inactive (auto-drop in current round)
-      if (game.state === 'playing' && !game.decisions.has(player.id)) {
-        game.decisions.set(player.id, 'drop');
-      }
-      
-      // Remove player from game if in lobby
+      // Explicitly leaving - remove player from game
       if (game.state === 'lobby') {
         game.players = game.players.filter(p => p.id !== player.id);
         
@@ -620,16 +647,49 @@ class GameManager {
           playerId: player.id,
           playerName: player.name
         });
+      } else {
+        // In active game - mark as inactive but keep in game
+        player.isActive = false;
+        player.socketId = null;
       }
     }
     
     this.socketPlayers.delete(socket.id);
     this.playerSockets.delete(playerInfo.playerId);
     
-    // Clean up empty games
+    // Clean up empty games only when explicitly leaving
     if (game.players.length === 0) {
       this.games.delete(game.roomCode);
     }
+  }
+  
+  handleDisconnect(socket) {
+    const playerInfo = this.socketPlayers.get(socket.id);
+    if (!playerInfo) return;
+    
+    const game = this.getGame(playerInfo.roomCode);
+    if (!game) return;
+    
+    const player = game.players.find(p => p.id === playerInfo.playerId);
+    if (player) {
+      // Mark player as inactive but don't remove them - allow reconnection
+      player.isActive = false;
+      player.socketId = null;
+      
+      // Auto-drop in current round if playing
+      if (game.state === 'playing' && !game.decisions.has(player.id)) {
+        game.decisions.set(player.id, 'drop');
+      }
+      
+      // Don't notify other players - they might reconnect
+      // Only notify if they explicitly leave via leave_game
+    }
+    
+    this.socketPlayers.delete(socket.id);
+    this.playerSockets.delete(playerInfo.playerId);
+    
+    // Don't delete games on disconnect - let cleanupAbandonedGames handle it
+    // This allows players to reconnect
   }
   
   cleanupAbandonedGames() {
