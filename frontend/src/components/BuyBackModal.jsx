@@ -8,8 +8,12 @@ export default function BuyBackModal() {
   const myPlayer = players.find(p => p.id === playerId)
   const myBalance = myPlayer?.balance ?? 0
   
+  // Determine if we should show the modal
+  const isInDebt = debtAmount !== null && debtAmount > 0
+  const shouldShow = showBuyBackModal || isInDebt || needsBuyBackForAnte
+  
   // Don't show if modal shouldn't be shown
-  if (!showBuyBackModal && (debtAmount === null || debtAmount === 0) && !needsBuyBackForAnte) {
+  if (!shouldShow) {
     return null
   }
   const [buyBackAmount, setBuyBackAmount] = useState('')
@@ -60,7 +64,7 @@ export default function BuyBackModal() {
     leaveGame()
   }
 
-  const isInDebt = debtAmount !== null && debtAmount > 0
+  // Recalculate isInDebt (already calculated above, but keeping for consistency)
   const currentDebt = myBalance < 0 ? Math.abs(myBalance) : (debtAmount || 0)
 
   return (

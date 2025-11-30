@@ -2,7 +2,13 @@ import { useGameStore } from '../store/gameStore'
 import Card from './Card'
 
 export default function RevealScreen() {
-  const { revealData, multipleHoldersResult, isHost, nextRound } = useGameStore()
+  const { revealData, multipleHoldersResult, isHost, nextRound, endGame } = useGameStore()
+  
+  const handleEndGame = () => {
+    if (window.confirm('Are you sure you want to end the game? This will end the game for all players.')) {
+      endGame()
+    }
+  }
 
   if (!revealData) return null
 
@@ -81,7 +87,7 @@ export default function RevealScreen() {
       </div>
 
       {/* Fixed Bottom Section - Always Visible */}
-      <div className="flex-shrink-0 pb-4 pt-3 safe-area-padding">
+      <div className="flex-shrink-0 pb-4 pt-3 safe-area-padding space-y-3">
         {/* Next Round Button (Host Only) */}
         {isHost && (
           <button
@@ -97,6 +103,20 @@ export default function RevealScreen() {
         {!isHost && (
           <div className="text-center py-3 bg-white/10 rounded-xl border border-white/20">
             <p className="text-white/70 font-semibold">Waiting for host to continue...</p>
+          </div>
+        )}
+        
+        {/* Exit Game Button (Host Only) - Below Continue Button */}
+        {isHost && (
+          <div className="flex justify-center">
+            <button
+              onClick={handleEndGame}
+              className="bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-lg active:scale-95 transition-all"
+              style={{ minHeight: '36px' }}
+              title="End Game"
+            >
+              Exit Game
+            </button>
           </div>
         )}
       </div>

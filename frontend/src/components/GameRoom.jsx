@@ -85,17 +85,6 @@ export default function GameRoom() {
 
   return (
     <div className="min-h-full flex flex-col pt-6 pb-6 safe-area-padding relative">
-      {/* Exit Game Button (Host Only) */}
-      {isHost && (
-        <button
-          onClick={handleEndGame}
-          className="absolute top-6 right-4 z-50 bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-lg active:scale-95 transition-all"
-          style={{ minHeight: '32px' }}
-          title="End Game"
-        >
-          Exit Game
-        </button>
-      )}
       
       {/* Header Info */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 mb-4">
@@ -215,6 +204,20 @@ export default function GameRoom() {
             style={{ minHeight: '60px' }}
           >
             HOLD
+          </button>
+        </div>
+      )}
+      
+      {/* Exit Game Button (Host Only) - Bottom Center */}
+      {isHost && !showDecisionButtons && (
+        <div className="flex-shrink-0 flex justify-center pb-4 pt-2">
+          <button
+            onClick={handleEndGame}
+            className="bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-lg active:scale-95 transition-all"
+            style={{ minHeight: '36px' }}
+            title="End Game"
+          >
+            Exit Game
           </button>
         </div>
       )}

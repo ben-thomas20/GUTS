@@ -57,6 +57,8 @@ class GameManager {
     
     const game = this.getGame(roomCode);
     if (!game) {
+      // Only emit error if this is not an auto-rejoin attempt (player explicitly trying to join)
+      // Auto-rejoin failures are handled silently on the frontend
       socket.emit('error', { message: 'Game not found' });
       return;
     }

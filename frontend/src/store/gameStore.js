@@ -33,16 +33,23 @@ const clearSessionFromStorage = () => {
 }
 
 // Helper to check and update debt status
-const checkDebtStatus = (players, playerId) => {
+const checkDebtStatus = (players, playerId, currentState = {}) => {
   const myPlayer = players.find(p => p.id === playerId)
   if (!myPlayer) return { debtAmount: null, showBuyBackModal: false }
   
   const balance = myPlayer.balance ?? 0
   const debtAmount = balance < 0 ? Math.abs(balance) : null
   
+  // If there's debt, always show the modal
+  // If modal was already showing (from player_in_debt event) and there's still debt, keep it showing
+  // This prevents the modal from disappearing when state updates
+  const hasDebt = debtAmount !== null && debtAmount > 0
+  // Keep modal showing if there's debt OR if it was already showing (from explicit player_in_debt event)
+  const showBuyBackModal = hasDebt || (currentState.showBuyBackModal && currentState.debtAmount !== null)
+  
   return {
     debtAmount,
-    showBuyBackModal: debtAmount !== null && debtAmount > 0
+    showBuyBackModal
   }
 }
 
@@ -135,6 +142,12 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('error', (data) => {
+      // Don't show "game not found" error if we're on landing page or if it's an auto-rejoin failure
+      const currentState = get()
+      if (data.message === 'Game not found' && (currentState.gameState === 'landing' || !currentState.roomCode)) {
+        // Silently ignore - this is expected when auto-rejoining fails on first load
+        return
+      }
       get().showNotification(data.message, 'error')
     })
     
@@ -290,7 +303,7 @@ export const useGameStore = create((set, get) => ({
           return newBalance ? { ...p, balance: newBalance.balance } : p
         })
         
-        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId, state)
         
         return {
           pot: data.pot,
@@ -308,7 +321,7 @@ export const useGameStore = create((set, get) => ({
           return newBalance ? { ...p, balance: newBalance.balance } : p
         })
         
-        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId, state)
         
         return {
           players: updatedPlayers,
@@ -335,7 +348,7 @@ export const useGameStore = create((set, get) => ({
             : p
         )
         
-        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId, state)
         
         return {
           showdownResult: data,
@@ -358,7 +371,7 @@ export const useGameStore = create((set, get) => ({
             : p
         )
         
-        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId, state)
         
         return {
           players: updatedPlayers,

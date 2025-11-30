@@ -3,7 +3,13 @@ import { useGameStore } from '../store/gameStore'
 import Card from './Card'
 
 export default function DeckShowdown() {
-  const { showdownData, showdownResult, showdownPhase, myCards, playerId, isHost, nextRound } = useGameStore()
+  const { showdownData, showdownResult, showdownPhase, myCards, playerId, isHost, nextRound, endGame } = useGameStore()
+  
+  const handleEndGame = () => {
+    if (window.confirm('Are you sure you want to end the game? This will end the game for all players.')) {
+      endGame()
+    }
+  }
   const [phase, setPhase] = useState('initial')
   const [dealerCardsVisible, setDealerCardsVisible] = useState(false)
   const [resultVisible, setResultVisible] = useState(false)
@@ -145,15 +151,28 @@ export default function DeckShowdown() {
 
       {/* Continue Button (Host Only) - At bottom */}
       {showdownResult && (
-        <div className="w-full max-w-2xl mx-auto mt-4 sm:mt-6 flex-shrink-0 pb-2">
+        <div className="w-full max-w-2xl mx-auto mt-4 sm:mt-6 flex-shrink-0 pb-2 space-y-3">
           {isHost ? (
-            <button
-              onClick={nextRound}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg sm:text-xl rounded-xl shadow-lg active:scale-95 transition-all"
-              style={{ minHeight: '44px' }}
-            >
-              {showdownResult.gameEnded ? 'View Final Results' : 'Continue to Next Round'}
-            </button>
+            <>
+              <button
+                onClick={nextRound}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg sm:text-xl rounded-xl shadow-lg active:scale-95 transition-all"
+                style={{ minHeight: '44px' }}
+              >
+                {showdownResult.gameEnded ? 'View Final Results' : 'Continue to Next Round'}
+              </button>
+              {/* Exit Game Button - Below Continue Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handleEndGame}
+                  className="bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-lg active:scale-95 transition-all"
+                  style={{ minHeight: '36px' }}
+                  title="End Game"
+                >
+                  Exit Game
+                </button>
+              </div>
+            </>
           ) : (
             <div className="text-center py-3 bg-white/10 rounded-xl border border-white/20">
               <p className="text-white/70 font-semibold text-sm sm:text-base">Waiting for host to continue...</p>
