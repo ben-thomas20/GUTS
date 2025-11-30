@@ -123,6 +123,10 @@ io.on('connection', (socket) => {
     gameManager.handleLeaveGame(socket);
   });
   
+  socket.on('buy_back_in', (data) => {
+    gameManager.handleBuyBackIn(socket, data);
+  });
+  
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
     gameManager.handleDisconnect(socket);

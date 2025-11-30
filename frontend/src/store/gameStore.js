@@ -32,6 +32,20 @@ const clearSessionFromStorage = () => {
   }
 }
 
+// Helper to check and update debt status
+const checkDebtStatus = (players, playerId) => {
+  const myPlayer = players.find(p => p.id === playerId)
+  if (!myPlayer) return { debtAmount: null, showBuyBackModal: false }
+  
+  const balance = myPlayer.balance ?? 0
+  const debtAmount = balance < 0 ? Math.abs(balance) : null
+  
+  return {
+    debtAmount,
+    showBuyBackModal: debtAmount !== null && debtAmount > 0
+  }
+}
+
 export const useGameStore = create((set, get) => ({
   // Connection state
   socket: null,
@@ -74,6 +88,10 @@ export const useGameStore = create((set, get) => ({
   
   // Final results
   finalStandings: null,
+  
+  // Buy-back state
+  debtAmount: null, // null = not in debt, number = debt amount
+  showBuyBackModal: false,
   
   // Notifications
   notification: null,
@@ -186,19 +204,25 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('round_started', (data) => {
-      set({
-        round: data.round,
-        pot: data.pot,
-        isNothingRound: data.isNothingRound,
-        players: data.players,
-        myDecision: null,
-        decidedPlayers: [],
-        revealData: null,
-        showdownData: null,
-        showdownResult: null,
-        showdownPhase: null,
-        multipleHoldersResult: null
-        // Don't clear myCards here - wait for cards_dealt to set them
+      set(state => {
+        const updatedPlayers = data.players
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        
+        return {
+          round: data.round,
+          pot: data.pot,
+          isNothingRound: data.isNothingRound,
+          players: updatedPlayers,
+          myDecision: null,
+          decidedPlayers: [],
+          revealData: null,
+          showdownData: null,
+          showdownResult: null,
+          showdownPhase: null,
+          multipleHoldersResult: null,
+          ...debtStatus
+          // Don't clear myCards here - wait for cards_dealt to set them
+        }
       })
     })
     
@@ -239,25 +263,39 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('all_dropped', (data) => {
-      set(state => ({
-        pot: data.pot,
-        players: state.players.map(p => {
+      set(state => {
+        const updatedPlayers = state.players.map(p => {
           const newBalance = data.balances.find(b => b.playerId === p.id)
           return newBalance ? { ...p, balance: newBalance.balance } : p
         })
-      }))
+        
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        
+        return {
+          pot: data.pot,
+          players: updatedPlayers,
+          ...debtStatus
+        }
+      })
       get().showNotification('Everyone dropped! Each player adds $0.50 to pot.', 'info')
     })
     
     socket.on('multiple_holders_result', (data) => {
-      set(state => ({
-        players: state.players.map(p => {
+      set(state => {
+        const updatedPlayers = state.players.map(p => {
           const newBalance = data.balances.find(b => b.playerId === p.id)
           return newBalance ? { ...p, balance: newBalance.balance } : p
-        }),
-        pot: data.newPot,
-        multipleHoldersResult: data
-      }))
+        })
+        
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        
+        return {
+          players: updatedPlayers,
+          pot: data.newPot,
+          multipleHoldersResult: data,
+          ...debtStatus
+        }
+      })
     })
     
     socket.on('single_holder_vs_deck', (data) => {
@@ -269,14 +307,62 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('deck_showdown_result', (data) => {
-      set({ 
-        showdownResult: data,
-        showdownPhase: 'result' // Show result phase
+      set(state => {
+        const updatedPlayers = state.players.map(p => 
+          p.id === state.playerId && data.newBalance !== undefined
+            ? { ...p, balance: data.newBalance }
+            : p
+        )
+        
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        
+        return {
+          showdownResult: data,
+          showdownPhase: 'result', // Show result phase
+          players: updatedPlayers,
+          ...debtStatus
+        }
       })
       
       // Don't auto-advance - wait for host to continue
       // If game ended, host will call endGame
       // If game continues, host will call nextRound
+    })
+    
+    socket.on('player_balance_updated', (data) => {
+      set(state => {
+        const updatedPlayers = state.players.map(p => 
+          p.id === data.playerId
+            ? { ...p, balance: data.newBalance }
+            : p
+        )
+        
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        
+        return {
+          players: updatedPlayers,
+          ...debtStatus
+        }
+      })
+    })
+    
+    socket.on('buy_back_result', (data) => {
+      set(state => {
+        const updatedPlayers = state.players.map(p => {
+          if (p.id === data.playerId) {
+            return { ...p, balance: data.newBalance }
+          }
+          return p
+        })
+        
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        
+        return {
+          players: updatedPlayers,
+          ...debtStatus
+        }
+      })
+      get().showNotification(data.success ? 'Buy-back successful!' : data.message || 'Buy-back failed', data.success ? 'info' : 'error')
     })
     
     socket.on('game_ended', (data) => {
@@ -403,7 +489,30 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
+  buyBackIn: (amount) => {
+    const { socket, debtAmount } = get()
+    if (!socket) {
+      get().showNotification('Not connected to server', 'error')
+      return
+    }
+    
+    if (debtAmount > 0 && amount < debtAmount) {
+      get().showNotification(`You must buy back at least $${debtAmount.toFixed(2)} to cover your debt`, 'error')
+      return
+    }
+    
+    socket.emit('buy_back_in', { amount })
+  },
+  
   leaveGame: () => {
+    const { debtAmount } = get()
+    
+    // Prevent leaving if in debt
+    if (debtAmount && debtAmount > 0) {
+      get().showNotification(`You cannot leave while in debt. You must buy back at least $${debtAmount.toFixed(2)} first.`, 'error')
+      return
+    }
+    
     const { socket } = get()
     if (socket) {
       socket.emit('leave_game')
@@ -422,7 +531,9 @@ export const useGameStore = create((set, get) => ({
       players: [],
       myCards: [],
       round: 0,
-      pot: 0
+      pot: 0,
+      debtAmount: null,
+      showBuyBackModal: false
     })
   },
   

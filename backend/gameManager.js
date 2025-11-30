@@ -625,6 +625,70 @@ class GameManager {
     }
   }
   
+  handleBuyBackIn(socket, data) {
+    const playerInfo = this.socketPlayers.get(socket.id);
+    if (!playerInfo) {
+      socket.emit('error', { message: 'Player not found' });
+      return;
+    }
+    
+    const game = this.getGame(playerInfo.roomCode);
+    if (!game) {
+      socket.emit('error', { message: 'Game not found' });
+      return;
+    }
+    
+    const player = game.players.find(p => p.id === playerInfo.playerId);
+    if (!player) {
+      socket.emit('error', { message: 'Player not found in game' });
+      return;
+    }
+    
+    const { amount } = data;
+    if (!amount || amount <= 0) {
+      socket.emit('buy_back_result', {
+        success: false,
+        message: 'Invalid buy-back amount',
+        playerId: player.id,
+        newBalance: player.balance
+      });
+      return;
+    }
+    
+    // Calculate current debt
+    const currentDebt = player.balance < 0 ? Math.abs(player.balance) : 0;
+    
+    // If in debt, must buy back at least the debt amount
+    if (currentDebt > 0 && amount < currentDebt) {
+      socket.emit('buy_back_result', {
+        success: false,
+        message: `You must buy back at least $${currentDebt.toFixed(2)} to cover your debt`,
+        playerId: player.id,
+        newBalance: player.balance
+      });
+      return;
+    }
+    
+    // Add buy-back amount to balance
+    player.balance += amount;
+    game.lastActivity = Date.now();
+    
+    // Notify the player
+    socket.emit('buy_back_result', {
+      success: true,
+      message: 'Buy-back successful!',
+      playerId: player.id,
+      newBalance: player.balance
+    });
+    
+    // Notify all players of balance update
+    this.io.to(game.roomCode).emit('player_balance_updated', {
+      playerId: player.id,
+      newBalance: player.balance,
+      buyBackAmount: amount
+    });
+  }
+  
   handleLeaveGame(socket) {
     const playerInfo = this.socketPlayers.get(socket.id);
     if (!playerInfo) return;
@@ -634,6 +698,14 @@ class GameManager {
     
     const player = game.players.find(p => p.id === playerInfo.playerId);
     if (player) {
+      // Check if player is in debt - prevent leaving if in debt
+      if (player.balance < 0) {
+        socket.emit('error', { 
+          message: `You cannot leave while in debt. You must buy back at least $${Math.abs(player.balance).toFixed(2)} first.` 
+        });
+        return;
+      }
+      
       // Explicitly leaving - remove player from game
       if (game.state === 'lobby') {
         game.players = game.players.filter(p => p.id !== player.id);

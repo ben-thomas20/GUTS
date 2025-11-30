@@ -5,6 +5,7 @@ import Lobby from './components/Lobby'
 import GameRoom from './components/GameRoom'
 import GameEnd from './components/GameEnd'
 import Notification from './components/Notification'
+import BuyBackModal from './components/BuyBackModal'
 
 function App() {
   const { gameState, initSocket, disconnect } = useGameStore()
@@ -35,6 +36,7 @@ function App() {
       <div className="w-full min-h-screen flex flex-col safe-area-padding">
         {renderScreen()}
         <Notification />
+        <BuyBackModal />
       </div>
     </div>
   )
