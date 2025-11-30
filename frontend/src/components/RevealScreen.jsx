@@ -81,7 +81,7 @@ export default function RevealScreen() {
       </div>
 
       {/* Fixed Bottom Section - Always Visible */}
-      <div className="flex-shrink-0 px-4 pb-4 pt-3 bg-gradient-to-t from-black via-black/90 to-transparent">
+      <div className="flex-shrink-0 px-4 pb-4 pt-3">
         {/* Next Round Button (Host Only) */}
         {isHost && (
           <button

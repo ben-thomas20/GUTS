@@ -14,7 +14,7 @@ export default function GameEnd() {
   const winner = finalStandings[0]
 
   return (
-    <div className="min-h-full flex flex-col p-6 pb-8 safe-area-padding">
+    <div className="min-h-full flex flex-col px-6 pt-6 pb-8 safe-area-padding">
       {/* Winner Announcement */}
       <div className="flex-shrink-0 text-center mb-8">
         <h1 className="text-6xl font-black mb-3">🎉</h1>

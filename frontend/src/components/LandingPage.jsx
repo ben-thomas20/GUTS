@@ -28,7 +28,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center justify-center p-6 pt-16 pb-12 safe-area-padding">
+    <div className="min-h-full flex flex-col items-center justify-center px-6 pt-16 pb-12 safe-area-padding">
       <div className="max-w-md w-full">
         {/* Title */}
         <div className="text-center mb-12">

@@ -6,6 +6,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  background: 
+    radial-gradient(at 27% 37%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 10% 29%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
+    radial-gradient(at 97% 96%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    radial-gradient(at 33% 50%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 79% 53%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
+    #000000;
+  background-attachment: fixed;
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari */
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -17,7 +32,7 @@ body {
   overscroll-behavior: none;
   overflow-x: hidden;
   overflow-y: auto;
-  background: #000000;
+  background: transparent;
   min-height: 100vh;
   min-height: -webkit-fill-available; /* iOS Safari */
 }
@@ -26,12 +41,12 @@ body {
   width: 100%;
   min-height: 100vh;
   min-height: -webkit-fill-available; /* iOS Safari */
-  background: #000000;
+  background: transparent;
 }
 
-/* iOS safe area support */
+/* iOS safe area support - extend background to cover status bar area */
 @supports (padding: max(0px)) {
-  body {
+  html {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
@@ -71,21 +86,9 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Modern gradient backgrounds - fixed to cover full scrollable area */
+/* Modern gradient backgrounds - now on html element */
 .gradient-mesh {
-  background: 
-    radial-gradient(at 27% 37%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 97% 21%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
-    radial-gradient(at 52% 99%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 10% 29%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
-    radial-gradient(at 97% 96%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
-    radial-gradient(at 33% 50%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 79% 53%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
-    #000000;
-  background-attachment: fixed;
-  background-size: 100% 100%;
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
+  background: transparent;
 }
 
 /* Card Dealing Animation */
