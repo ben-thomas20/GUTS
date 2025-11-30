@@ -40,12 +40,13 @@ const checkDebtStatus = (players, playerId, currentState = {}) => {
   const balance = myPlayer.balance ?? 0
   const debtAmount = balance < 0 ? Math.abs(balance) : null
   
-  // If there's debt, always show the modal
-  // If modal was already showing (from player_in_debt event) and there's still debt, keep it showing
-  // This prevents the modal from disappearing when state updates
+  // If there's debt, ALWAYS show the modal - this is the key fix
+  // Don't rely on currentState.showBuyBackModal because state updates might clear it
   const hasDebt = debtAmount !== null && debtAmount > 0
-  // Keep modal showing if there's debt OR if it was already showing (from explicit player_in_debt event)
-  const showBuyBackModal = hasDebt || (currentState.showBuyBackModal && currentState.debtAmount !== null)
+  
+  // Always show modal if there's debt, regardless of previous state
+  // This ensures the modal appears even if state updates try to clear it
+  const showBuyBackModal = hasDebt
   
   return {
     debtAmount,
@@ -424,15 +425,19 @@ export const useGameStore = create((set, get) => ({
           return p
         })
         
-        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
+        const debtStatus = checkDebtStatus(updatedPlayers, state.playerId, state)
         
         // Check if player can now afford ante (if they needed to buy back for ante)
         const myPlayer = updatedPlayers.find(p => p.id === state.playerId)
         const canAffordAnte = myPlayer && myPlayer.balance >= 0.50 // ante is 0.50
         
+        // If buy-back was successful and there's no more debt, clear the modal
+        const shouldShowModal = debtStatus.showBuyBackModal || (!canAffordAnte && state.needsBuyBackForAnte)
+        
         return {
           players: updatedPlayers,
           ...debtStatus,
+          showBuyBackModal: shouldShowModal,
           needsBuyBackForAnte: !canAffordAnte && state.needsBuyBackForAnte,
           anteAmount: !canAffordAnte ? (state.anteAmount || 0.50) : 0
         }

@@ -8,9 +8,10 @@ export default function BuyBackModal() {
   const myPlayer = players.find(p => p.id === playerId)
   const myBalance = myPlayer?.balance ?? 0
   
-  // Determine if we should show the modal
+  // Determine if we should show the modal - check multiple conditions
   const isInDebt = debtAmount !== null && debtAmount > 0
-  const shouldShow = showBuyBackModal || isInDebt || needsBuyBackForAnte
+  const hasNegativeBalance = myBalance < 0
+  const shouldShow = showBuyBackModal || isInDebt || hasNegativeBalance || needsBuyBackForAnte
   
   // Don't show if modal shouldn't be shown
   if (!shouldShow) {
@@ -36,9 +37,10 @@ export default function BuyBackModal() {
       return
     }
 
-    // If in debt, must cover debt
-    if (debtAmount > 0 && amount < debtAmount) {
-      setError(`You must buy back at least $${debtAmount.toFixed(2)} to cover your debt`)
+    // If in debt, must cover debt - check both debtAmount and actual balance
+    const requiredAmount = currentDebt > 0 ? currentDebt : (debtAmount || 0)
+    if (isInDebtFinal && amount < requiredAmount) {
+      setError(`You must buy back at least $${requiredAmount.toFixed(2)} to cover your debt`)
       return
     }
 
@@ -57,34 +59,36 @@ export default function BuyBackModal() {
   }
 
   const handleLeave = () => {
-    if (debtAmount > 0) {
+    if (isInDebtFinal) {
       setError('You cannot leave while in debt. You must buy back in first.')
       return
     }
     leaveGame()
   }
 
-  // Recalculate isInDebt (already calculated above, but keeping for consistency)
-  const currentDebt = myBalance < 0 ? Math.abs(myBalance) : (debtAmount || 0)
+  // Recalculate isInDebt - use actual balance if it's negative, otherwise use debtAmount
+  const actualDebt = myBalance < 0 ? Math.abs(myBalance) : (debtAmount || 0)
+  const isInDebtFinal = hasNegativeBalance || (debtAmount !== null && debtAmount > 0)
+  const currentDebt = actualDebt
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 safe-area-padding">
       <div className="bg-gray-900 border-2 border-red-500 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="text-center mb-6">
           <h2 className="text-3xl font-black text-white mb-2">
-            {isInDebt ? '⚠ You\'re in Debt!' : needsBuyBackForAnte ? '⚠ Need to Buy Back' : 'Low Balance'}
+            {isInDebtFinal ? '⚠ You\'re in Debt!' : needsBuyBackForAnte ? '⚠ Need to Buy Back' : 'Low Balance'}
           </h2>
           <p className="text-white/70 text-lg font-semibold">
             Current Balance: <span className={`font-black ${myBalance < 0 ? 'text-red-400' : 'text-yellow-400'}`}>
               ${myBalance.toFixed(2)}
             </span>
           </p>
-          {isInDebt && (
+          {isInDebtFinal && (
             <p className="text-red-400 text-base font-bold mt-2">
               Debt Amount: ${currentDebt.toFixed(2)}
             </p>
           )}
-          {needsBuyBackForAnte && !isInDebt && (
+          {needsBuyBackForAnte && !isInDebtFinal && (
             <p className="text-yellow-400 text-base font-bold mt-2">
               Ante Required: ${anteAmount.toFixed(2)} • You need ${(anteAmount - myBalance).toFixed(2)} more
             </p>
@@ -94,9 +98,9 @@ export default function BuyBackModal() {
         <div className="mb-6">
           <label className="block text-white/80 text-sm font-semibold mb-2 tracking-wide">
             Buy Back Amount {
-              isInDebt && <span className="text-red-400">(Minimum: ${currentDebt.toFixed(2)})</span>
+              isInDebtFinal && <span className="text-red-400">(Minimum: ${currentDebt.toFixed(2)})</span>
             }
-            {needsBuyBackForAnte && !isInDebt && anteAmount > 0 && (
+            {needsBuyBackForAnte && !isInDebtFinal && anteAmount > 0 && (
               <span className="text-yellow-400">(Minimum: ${(anteAmount - myBalance).toFixed(2)} to afford ante)</span>
             )}
           </label>
@@ -108,7 +112,7 @@ export default function BuyBackModal() {
               setError('')
             }}
             placeholder="Enter amount"
-            min={isInDebt ? currentDebt : 0}
+            min={isInDebtFinal ? currentDebt : 0}
             step="0.01"
             className="w-full px-4 py-3 rounded-xl text-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
@@ -128,19 +132,19 @@ export default function BuyBackModal() {
           
           <button
             onClick={handleLeave}
-            disabled={isInDebt}
+            disabled={isInDebtFinal}
             className={`w-full py-3 text-white font-semibold text-base rounded-xl active:scale-95 transition-all ${
-              isInDebt
+              isInDebtFinal
                 ? 'bg-gray-600 cursor-not-allowed opacity-50'
                 : 'bg-white/10 hover:bg-white/20 border border-white/20'
             }`}
             style={{ minHeight: '44px' }}
           >
-            {isInDebt ? 'Cannot Leave (In Debt)' : 'Leave Game'}
+            {isInDebtFinal ? 'Cannot Leave (In Debt)' : 'Leave Game'}
           </button>
         </div>
 
-        {isInDebt && (
+        {isInDebtFinal && (
           <p className="text-white/60 text-xs text-center mt-4 font-medium">
             You must buy back at least ${currentDebt.toFixed(2)} to cover your debt before leaving.
           </p>
