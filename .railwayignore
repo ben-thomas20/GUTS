@@ -1,0 +1,12 @@
+# For backend service - ignore frontend
+frontend/
+
+# For frontend service - ignore backend  
+backend/
+
+# General ignores
+node_modules/
+.git/
+*.log
+.DS_Store
+

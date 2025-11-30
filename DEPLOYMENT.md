@@ -1,17 +1,77 @@
-# 🚀 Deployment Guide - Vercel
+# 🚀 Deployment Guide
 
 ## Overview
 
-This guide will help you deploy the Guts Card Game to Vercel. Since the app has both frontend and backend components, you have two deployment options:
+This guide will help you deploy the Guts Card Game. Since the app has both frontend and backend components, you have three deployment options:
 
-**Option 1 (Recommended)**: Frontend on Vercel + Backend on Railway/Render
-**Option 2**: Both on Vercel (with some limitations for WebSocket)
+**Option 1 (EASIEST)**: Both Frontend + Backend on Railway ⭐ RECOMMENDED
+**Option 2**: Frontend on Vercel + Backend on Railway
+**Option 3**: Both on Vercel (WebSocket limitations)
 
 ---
 
-## 🎯 Option 1: Frontend (Vercel) + Backend (Railway) - RECOMMENDED
+## ⭐ Option 1: Both on Railway (EASIEST & RECOMMENDED)
 
-This is the recommended approach for best WebSocket performance.
+This is the **simplest** deployment option with full WebSocket support!
+
+### Step 1: Deploy Backend to Railway
+
+1. **Go to [Railway.app](https://railway.app/)** and sign up/login with GitHub
+
+2. **Click "New Project" → "Deploy from GitHub repo"**
+
+3. **Select your GUTS repository**
+
+4. **Click "Add Service" and configure:**
+   - Name it: `guts-backend`
+   - Root Directory: `backend`
+   - Build Command: `npm install`
+   - Start Command: `node server.js`
+
+5. **Add Environment Variables:**
+   ```
+   PORT=3001
+   NODE_ENV=production
+   FRONTEND_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+   ```
+
+6. **Deploy** and get your backend URL
+
+### Step 2: Deploy Frontend to Railway
+
+1. **In the same Railway project, click "New Service"**
+
+2. **Select the same GitHub repo**
+
+3. **Configure:**
+   - Name it: `guts-frontend`
+   - Root Directory: `frontend`
+   - Build Command: `npm install && npm run build`
+   - Start Command: `npx serve -s dist -l $PORT`
+
+4. **Add Environment Variables:**
+   ```
+   VITE_API_URL=https://YOUR-BACKEND-URL.railway.app
+   ```
+   (Use the backend URL from Step 1)
+
+5. **Deploy**
+
+### Step 3: Update Backend Environment
+
+1. Go to backend service settings
+2. Update `FRONTEND_URL` to your frontend Railway URL
+3. Redeploy backend
+
+### ✅ Done! Both services running on Railway!
+
+**Cost**: Railway gives $5 free credit per month - perfect for this project!
+
+---
+
+## 🎯 Option 2: Frontend (Vercel) + Backend (Railway)
+
+This option splits hosting between two platforms.
 
 ### Step 1: Deploy Backend to Railway
 
@@ -69,7 +129,7 @@ This is the recommended approach for best WebSocket performance.
 
 ---
 
-## 🔧 Option 2: Both on Vercel (Serverless Functions)
+## 🔧 Option 3: Both on Vercel (Serverless Functions)
 
 **Note**: Vercel has limitations with WebSockets in serverless functions. This may cause connection issues.
 
