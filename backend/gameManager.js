@@ -233,9 +233,23 @@ class GameManager {
     
     game.state = 'playing';
     
+    // Clear all previous game state
+    game.round = 0;
+    game.pot = 0;
+    game.decisions.clear();
+    game.currentHands.clear();
+    game.deck = [];
+    game.isNothingRound = true;
+    game.pendingGameEnd = false;
+    if (game.decisionTimer) {
+      clearInterval(game.decisionTimer);
+      game.decisionTimer = null;
+    }
+    
     // Set each player's balance to their individual buy-in amount
     game.players.forEach(p => {
       p.balance = p.buyInAmount || 20;
+      p.isActive = true; // Reset active status
     });
     
     // Ensure all player sockets are properly mapped
@@ -273,9 +287,55 @@ class GameManager {
     game.decisions.clear();
     game.currentHands.clear();
     
+    // Check for players in debt first - they need to buy back before starting round
+    const playersInDebt = game.players.filter(p => p.balance < 0);
+    if (playersInDebt.length > 0) {
+      // Notify players in debt
+      playersInDebt.forEach(debtPlayer => {
+        const debtAmount = Math.abs(debtPlayer.balance);
+        const playerSocket = this.playerSockets.get(debtPlayer.id);
+        if (playerSocket) {
+          playerSocket.emit('player_in_debt', {
+            debtAmount: debtAmount,
+            balance: debtPlayer.balance
+          });
+        }
+      });
+      
+      // Don't start the round - wait for players to buy back
+      // Emit an event to notify that round cannot start due to debt
+      this.io.to(game.roomCode).emit('round_blocked_debt', {
+        playersInDebt: playersInDebt.map(p => ({
+          playerId: p.id,
+          playerName: p.name,
+          debtAmount: Math.abs(p.balance)
+        }))
+      });
+      return;
+    }
+    
     // Collect antes
     const activePlayers = game.players.filter(p => p.balance >= game.ante);
+    
+    // Double-check for debt before ending game (safety check)
+    const finalDebtCheck = game.players.filter(p => p.balance < 0);
+    if (finalDebtCheck.length > 0) {
+      // Still have players in debt - notify them again and don't start round
+      finalDebtCheck.forEach(debtPlayer => {
+        const debtAmount = Math.abs(debtPlayer.balance);
+        const playerSocket = this.playerSockets.get(debtPlayer.id);
+        if (playerSocket) {
+          playerSocket.emit('player_in_debt', {
+            debtAmount: debtAmount,
+            balance: debtPlayer.balance
+          });
+        }
+      });
+      return;
+    }
+    
     if (activePlayers.length < 2) {
+      // Only end game if no one is in debt and we don't have enough players
       this.endGame(game);
       return;
     }
@@ -422,6 +482,9 @@ class GameManager {
           pot: game.pot
         });
         
+        // Check for players who went into debt BEFORE emitting all_dropped
+        const playersInDebt = game.players.filter(p => p.balance < 0);
+        
         this.io.to(game.roomCode).emit('all_dropped', { 
           pot: game.pot,
           balances: game.players.map(p => ({
@@ -430,8 +493,7 @@ class GameManager {
           }))
         });
         
-        // Check for players who went into debt
-        const playersInDebt = game.players.filter(p => p.balance < 0);
+        // Notify players who went into debt
         playersInDebt.forEach(debtPlayer => {
           const debtAmount = Math.abs(debtPlayer.balance);
           const playerSocket = this.playerSockets.get(debtPlayer.id);

@@ -186,7 +186,24 @@ export const useGameStore = create((set, get) => ({
         players: data.players.map(p => ({
           ...p,
           buyInAmount: p.buyInAmount || 20
-        }))
+        })),
+        // Clear all previous game state
+        pot: 0,
+        round: 0,
+        isNothingRound: true,
+        myCards: [],
+        timerRemaining: 0,
+        timerDuration: 30,
+        timerActive: false,
+        myDecision: null,
+        decidedPlayers: [],
+        revealData: null,
+        showdownData: null,
+        showdownResult: null,
+        showdownPhase: null,
+        multipleHoldersResult: null,
+        debtAmount: null,
+        showBuyBackModal: false
       })
     })
     
@@ -377,6 +394,34 @@ export const useGameStore = create((set, get) => ({
       set({
         gameState: 'ended',
         finalStandings: data.finalStandings
+      })
+    })
+    
+    socket.on('game_reset', (data) => {
+      set({
+        gameState: 'lobby',
+        players: data.players.map(p => ({
+          ...p,
+          buyInAmount: p.buyInAmount || 20
+        })),
+        // Clear all game state when resetting to lobby
+        pot: 0,
+        round: 0,
+        isNothingRound: true,
+        myCards: [],
+        timerRemaining: 0,
+        timerDuration: 30,
+        timerActive: false,
+        myDecision: null,
+        decidedPlayers: [],
+        revealData: null,
+        showdownData: null,
+        showdownResult: null,
+        showdownPhase: null,
+        multipleHoldersResult: null,
+        finalStandings: null,
+        debtAmount: null,
+        showBuyBackModal: false
       })
     })
     
