@@ -346,6 +346,14 @@ export const useGameStore = create((set, get) => ({
       })
     })
     
+    socket.on('player_in_debt', (data) => {
+      set({
+        debtAmount: data.debtAmount,
+        showBuyBackModal: true
+      })
+      get().showNotification(`You're in debt! You must buy back $${data.debtAmount.toFixed(2)} to continue.`, 'error')
+    })
+    
     socket.on('buy_back_result', (data) => {
       set(state => {
         const updatedPlayers = state.players.map(p => {

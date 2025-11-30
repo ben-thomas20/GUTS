@@ -429,6 +429,20 @@ class GameManager {
             balance: p.balance
           }))
         });
+        
+        // Check for players who went into debt
+        const playersInDebt = game.players.filter(p => p.balance < 0);
+        playersInDebt.forEach(debtPlayer => {
+          const debtAmount = Math.abs(debtPlayer.balance);
+          const playerSocket = this.playerSockets.get(debtPlayer.id);
+          if (playerSocket) {
+            playerSocket.emit('player_in_debt', {
+              debtAmount: debtAmount,
+              balance: debtPlayer.balance
+            });
+          }
+        });
+        
         // Don't auto-advance - wait for host to click continue
       } else if (holders.length === 1) {
         // Single holder vs THE DECK - skip reveal, go directly to showdown
@@ -476,6 +490,9 @@ class GameManager {
     const newPotAddition = losers.length * game.pot;
     game.pot = newPotAddition;
     
+    // Check for players who went into debt
+    const playersInDebt = game.players.filter(p => p.balance < 0);
+    
     this.io.to(game.roomCode).emit('multiple_holders_result', {
       winner: {
         playerId: winner.id,
@@ -490,6 +507,18 @@ class GameManager {
         playerId: p.id,
         balance: p.balance
       }))
+    });
+    
+    // Notify players who went into debt
+    playersInDebt.forEach(debtPlayer => {
+      const debtAmount = Math.abs(debtPlayer.balance);
+      const playerSocket = this.playerSockets.get(debtPlayer.id);
+      if (playerSocket) {
+        playerSocket.emit('player_in_debt', {
+          debtAmount: debtAmount,
+          balance: debtPlayer.balance
+        });
+      }
     });
     
     // Don't auto-advance - wait for host to click continue
@@ -555,6 +584,18 @@ class GameManager {
           gameEnded: false
         });
         
+        // Check if player went into debt
+        if (holder.balance < 0) {
+          const debtAmount = Math.abs(holder.balance);
+          const playerSocket = this.playerSockets.get(holder.id);
+          if (playerSocket) {
+            playerSocket.emit('player_in_debt', {
+              debtAmount: debtAmount,
+              balance: holder.balance
+            });
+          }
+        }
+        
         // Don't auto-advance - wait for host to click continue
       }
     }, 5000); // Slower: 5 seconds for animations
@@ -619,6 +660,28 @@ class GameManager {
         game.pendingGameEnd = false;
         this.endGame(game);
       } else {
+        // Check for players in debt before starting next round
+        const playersInDebt = game.players.filter(p => p.balance < 0);
+        if (playersInDebt.length > 0) {
+          // Notify players in debt
+          playersInDebt.forEach(debtPlayer => {
+            const debtAmount = Math.abs(debtPlayer.balance);
+            const playerSocket = this.playerSockets.get(debtPlayer.id);
+            if (playerSocket) {
+              playerSocket.emit('player_in_debt', {
+                debtAmount: debtAmount,
+                balance: debtPlayer.balance
+              });
+            }
+          });
+          
+          // Notify host that players need to buy back
+          socket.emit('error', { 
+            message: `Cannot start next round: ${playersInDebt.map(p => p.name).join(', ')} ${playersInDebt.length === 1 ? 'is' : 'are'} in debt and must buy back first.` 
+          });
+          return;
+        }
+        
         // Continue to next round
         this.startNewRound(game);
       }
