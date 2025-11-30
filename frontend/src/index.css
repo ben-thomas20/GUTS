@@ -17,10 +17,15 @@ html {
     radial-gradient(at 79% 53%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
     #000000;
   background-attachment: fixed;
-  background-size: 100% 100%;
+  background-size: cover;
+  background-position: center;
   min-height: 100vh;
   min-height: -webkit-fill-available; /* iOS Safari */
-  /* Extend background into safe areas */
+  /* Extend background into safe areas - use negative margin to extend beyond viewport */
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+  margin-bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+  margin-left: calc(-1 * env(safe-area-inset-left, 0px));
+  margin-right: calc(-1 * env(safe-area-inset-right, 0px));
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);

@@ -11,7 +11,7 @@ export default function RevealScreen() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scroll px-5 pt-4 pb-4">
+      <div className="flex-1 overflow-y-auto custom-scroll px-6 pt-4 pb-4">
         <h2 className="text-white text-3xl font-black text-center mb-6 bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent">
           Round Results
         </h2>
@@ -81,7 +81,7 @@ export default function RevealScreen() {
       </div>
 
       {/* Fixed Bottom Section - Always Visible */}
-      <div className="flex-shrink-0 px-5 pb-4 pt-3">
+      <div className="flex-shrink-0 px-6 pb-4 pt-3">
         {/* Next Round Button (Host Only) */}
         {isHost && (
           <button

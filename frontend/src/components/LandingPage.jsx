@@ -28,8 +28,8 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center justify-center px-6 pt-24 pb-12 safe-area-padding">
-      <div className="max-w-md w-full">
+    <div className="min-h-full flex flex-col items-center justify-start px-6 pt-32 pb-12 safe-area-padding">
+      <div className="max-w-md w-full mt-8">
         {/* Title */}
         <div className="text-center mb-12">
           <h1 className="text-6xl font-black text-white mb-3">GUTS</h1>
