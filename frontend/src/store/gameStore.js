@@ -92,6 +92,8 @@ export const useGameStore = create((set, get) => ({
   // Buy-back state
   debtAmount: null, // null = not in debt, number = debt amount
   showBuyBackModal: false,
+  needsBuyBackForAnte: false, // true if player needs to buy back to afford ante (not in debt)
+  anteAmount: 0, // amount needed for ante
   
   // Notifications
   notification: null,
@@ -203,7 +205,9 @@ export const useGameStore = create((set, get) => ({
         showdownPhase: null,
         multipleHoldersResult: null,
         debtAmount: null,
-        showBuyBackModal: false
+        showBuyBackModal: false,
+        needsBuyBackForAnte: false,
+        anteAmount: 0
       })
     })
     
@@ -364,11 +368,25 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('player_in_debt', (data) => {
-      set({
-        debtAmount: data.debtAmount,
-        showBuyBackModal: true
-      })
-      get().showNotification(`You're in debt! You must buy back $${data.debtAmount.toFixed(2)} to continue.`, 'error')
+      const debtAmount = data.debtAmount || 0
+      const needsBuyBack = data.needsBuyBack || false
+      const anteAmount = data.anteAmount || 0
+      
+      // Show modal if in debt OR if they need to buy back to afford ante
+      if (debtAmount > 0 || needsBuyBack) {
+        set({
+          debtAmount: debtAmount > 0 ? debtAmount : (needsBuyBack ? anteAmount : null),
+          showBuyBackModal: true,
+          needsBuyBackForAnte: needsBuyBack && debtAmount === 0,
+          anteAmount: anteAmount
+        })
+        
+        if (debtAmount > 0) {
+          get().showNotification(`You're in debt! You must buy back at least $${debtAmount.toFixed(2)} to continue.`, 'error')
+        } else if (needsBuyBack) {
+          get().showNotification(`You need to buy back to afford the ante ($${anteAmount.toFixed(2)}).`, 'error')
+        }
+      }
     })
     
     socket.on('buy_back_result', (data) => {
@@ -382,9 +400,15 @@ export const useGameStore = create((set, get) => ({
         
         const debtStatus = checkDebtStatus(updatedPlayers, state.playerId)
         
+        // Check if player can now afford ante (if they needed to buy back for ante)
+        const myPlayer = updatedPlayers.find(p => p.id === state.playerId)
+        const canAffordAnte = myPlayer && myPlayer.balance >= 0.50 // ante is 0.50
+        
         return {
           players: updatedPlayers,
-          ...debtStatus
+          ...debtStatus,
+          needsBuyBackForAnte: !canAffordAnte && state.needsBuyBackForAnte,
+          anteAmount: !canAffordAnte ? (state.anteAmount || 0.50) : 0
         }
       })
       get().showNotification(data.success ? 'Buy-back successful!' : data.message || 'Buy-back failed', data.success ? 'info' : 'error')
@@ -421,7 +445,9 @@ export const useGameStore = create((set, get) => ({
         multipleHoldersResult: null,
         finalStandings: null,
         debtAmount: null,
-        showBuyBackModal: false
+        showBuyBackModal: false,
+        needsBuyBackForAnte: false,
+        anteAmount: 0
       })
     })
     
@@ -586,7 +612,9 @@ export const useGameStore = create((set, get) => ({
       round: 0,
       pot: 0,
       debtAmount: null,
-      showBuyBackModal: false
+      showBuyBackModal: false,
+      needsBuyBackForAnte: false,
+      anteAmount: 0
     })
   },
   

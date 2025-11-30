@@ -314,29 +314,89 @@ class GameManager {
       return;
     }
     
-    // Collect antes
+    // Collect antes - but first check if players can afford it
+    // THE GAME DOES NOT END UNTIL THE DEALER IS BEATEN
+    // So we never end the game here - players can always buy back
+    
     const activePlayers = game.players.filter(p => p.balance >= game.ante);
     
-    // Double-check for debt before ending game (safety check)
-    const finalDebtCheck = game.players.filter(p => p.balance < 0);
-    if (finalDebtCheck.length > 0) {
-      // Still have players in debt - notify them again and don't start round
-      finalDebtCheck.forEach(debtPlayer => {
-        const debtAmount = Math.abs(debtPlayer.balance);
-        const playerSocket = this.playerSockets.get(debtPlayer.id);
+    // If not enough players can afford ante, check if any are in debt
+    // If so, they need to buy back before we can continue
+    if (activePlayers.length < 2) {
+      // Check for players who can't afford ante (they might be in debt or just low on funds)
+      const playersWhoCantAfford = game.players.filter(p => p.balance < game.ante);
+      
+      // Check if any are in debt (negative balance)
+      const playersInDebt = playersWhoCantAfford.filter(p => p.balance < 0);
+      
+      if (playersInDebt.length > 0) {
+        // Players are in debt - notify them to buy back
+        playersInDebt.forEach(debtPlayer => {
+          const debtAmount = Math.abs(debtPlayer.balance);
+          const playerSocket = this.playerSockets.get(debtPlayer.id);
+          if (playerSocket) {
+            playerSocket.emit('player_in_debt', {
+              debtAmount: debtAmount,
+              balance: debtPlayer.balance
+            });
+          }
+        });
+        
+        // Also notify players who can't afford ante but aren't in debt yet
+        const playersLowOnFunds = playersWhoCantAfford.filter(p => p.balance >= 0 && p.balance < game.ante);
+        if (playersLowOnFunds.length > 0) {
+          playersLowOnFunds.forEach(lowPlayer => {
+            const playerSocket = this.playerSockets.get(lowPlayer.id);
+            if (playerSocket) {
+              playerSocket.emit('player_in_debt', {
+                debtAmount: 0, // Not in debt yet, but need to buy back to afford ante
+                balance: lowPlayer.balance,
+                needsBuyBack: true,
+                anteAmount: game.ante
+              });
+            }
+          });
+        }
+        
+        // Don't start round - wait for players to buy back
+        this.io.to(game.roomCode).emit('round_blocked_debt', {
+          playersInDebt: playersInDebt.map(p => ({
+            playerId: p.id,
+            playerName: p.name,
+            debtAmount: Math.abs(p.balance)
+          })),
+          playersLowOnFunds: playersLowOnFunds.map(p => ({
+            playerId: p.id,
+            playerName: p.name,
+            currentBalance: p.balance,
+            neededAmount: game.ante
+          }))
+        });
+        return;
+      }
+      
+      // If no one is in debt but still can't afford ante, they still need to buy back
+      // Don't end the game - wait for buy-back
+      playersWhoCantAfford.forEach(lowPlayer => {
+        const playerSocket = this.playerSockets.get(lowPlayer.id);
         if (playerSocket) {
           playerSocket.emit('player_in_debt', {
-            debtAmount: debtAmount,
-            balance: debtPlayer.balance
+            debtAmount: 0,
+            balance: lowPlayer.balance,
+            needsBuyBack: true,
+            anteAmount: game.ante
           });
         }
       });
-      return;
-    }
-    
-    if (activePlayers.length < 2) {
-      // Only end game if no one is in debt and we don't have enough players
-      this.endGame(game);
+      
+      this.io.to(game.roomCode).emit('round_blocked_debt', {
+        playersLowOnFunds: playersWhoCantAfford.map(p => ({
+          playerId: p.id,
+          playerName: p.name,
+          currentBalance: p.balance,
+          neededAmount: game.ante
+        }))
+      });
       return;
     }
     

@@ -2,25 +2,27 @@ import { useState, useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 
 export default function BuyBackModal() {
-  const { debtAmount, showBuyBackModal, players, playerId, buyBackIn, leaveGame } = useGameStore()
+  const { debtAmount, showBuyBackModal, needsBuyBackForAnte, anteAmount, players, playerId, buyBackIn, leaveGame } = useGameStore()
   
   // Calculate my balance
   const myPlayer = players.find(p => p.id === playerId)
   const myBalance = myPlayer?.balance ?? 0
   
   // Don't show if modal shouldn't be shown
-  if (!showBuyBackModal && (debtAmount === null || debtAmount === 0)) {
+  if (!showBuyBackModal && (debtAmount === null || debtAmount === 0) && !needsBuyBackForAnte) {
     return null
   }
   const [buyBackAmount, setBuyBackAmount] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
-    // Set default buy-back amount to debt amount
+    // Set default buy-back amount to debt amount or ante amount
     if (debtAmount && debtAmount > 0) {
       setBuyBackAmount(debtAmount.toFixed(2))
+    } else if (needsBuyBackForAnte && anteAmount > 0) {
+      setBuyBackAmount(anteAmount.toFixed(2))
     }
-  }, [debtAmount])
+  }, [debtAmount, needsBuyBackForAnte, anteAmount])
 
   const handleBuyBack = () => {
     const amount = parseFloat(buyBackAmount)
@@ -30,9 +32,20 @@ export default function BuyBackModal() {
       return
     }
 
+    // If in debt, must cover debt
     if (debtAmount > 0 && amount < debtAmount) {
       setError(`You must buy back at least $${debtAmount.toFixed(2)} to cover your debt`)
       return
+    }
+
+    // If need to afford ante, must buy back enough to afford it
+    if (needsBuyBackForAnte && anteAmount > 0) {
+      const totalAfterBuyBack = myBalance + amount
+      if (totalAfterBuyBack < anteAmount) {
+        const needed = anteAmount - myBalance
+        setError(`You need to buy back at least $${needed.toFixed(2)} to afford the ante ($${anteAmount.toFixed(2)})`)
+        return
+      }
     }
 
     setError('')
@@ -55,7 +68,7 @@ export default function BuyBackModal() {
       <div className="bg-gray-900 border-2 border-red-500 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="text-center mb-6">
           <h2 className="text-3xl font-black text-white mb-2">
-            {isInDebt ? '⚠ You\'re in Debt!' : 'Low Balance'}
+            {isInDebt ? '⚠ You\'re in Debt!' : needsBuyBackForAnte ? '⚠ Need to Buy Back' : 'Low Balance'}
           </h2>
           <p className="text-white/70 text-lg font-semibold">
             Current Balance: <span className={`font-black ${myBalance < 0 ? 'text-red-400' : 'text-yellow-400'}`}>
@@ -67,11 +80,21 @@ export default function BuyBackModal() {
               Debt Amount: ${currentDebt.toFixed(2)}
             </p>
           )}
+          {needsBuyBackForAnte && !isInDebt && (
+            <p className="text-yellow-400 text-base font-bold mt-2">
+              Ante Required: ${anteAmount.toFixed(2)} • You need ${(anteAmount - myBalance).toFixed(2)} more
+            </p>
+          )}
         </div>
 
         <div className="mb-6">
           <label className="block text-white/80 text-sm font-semibold mb-2 tracking-wide">
-            Buy Back Amount {isInDebt && <span className="text-red-400">(Minimum: ${currentDebt.toFixed(2)})</span>}
+            Buy Back Amount {
+              isInDebt && <span className="text-red-400">(Minimum: ${currentDebt.toFixed(2)})</span>
+            }
+            {needsBuyBackForAnte && !isInDebt && anteAmount > 0 && (
+              <span className="text-yellow-400">(Minimum: ${(anteAmount - myBalance).toFixed(2)} to afford ante)</span>
+            )}
           </label>
           <input
             type="number"
