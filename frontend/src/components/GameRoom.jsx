@@ -75,7 +75,7 @@ export default function GameRoom() {
   const showDeckShowdown = showdownData
 
   return (
-    <div className="min-h-full flex flex-col px-6 pt-6 pb-6 safe-area-padding">
+    <div className="min-h-full flex flex-col pt-6 pb-6 safe-area-padding">
       {/* Header Info */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 mb-4">
         <div className="bg-white/10 rounded-xl border border-white/20 p-4 text-center">
@@ -171,7 +171,7 @@ export default function GameRoom() {
 
       {/* Decision Buttons - Pushed to bottom */}
       {showDecisionButtons && (
-        <div className="flex-shrink-0 grid grid-cols-2 gap-4 mt-auto pb-2">
+        <div className="flex-shrink-0 grid grid-cols-2 gap-4 mt-auto pb-2 w-full">
           <button
             onClick={() => makeDecision('drop')}
             className="py-6 bg-gray-700 hover:bg-gray-600 border-2 border-gray-600 hover:border-white/30 text-white font-bold text-2xl rounded-xl shadow-lg active:scale-95 transition-all"

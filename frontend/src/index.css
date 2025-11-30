@@ -41,11 +41,30 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  overscroll-behavior-y: contain;
   overflow-x: hidden;
   overflow-y: auto;
   background: transparent;
   min-height: 100vh;
   min-height: -webkit-fill-available; /* iOS Safari */
+  /* Hide scrollbar but allow scrolling */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for all elements */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
 #root {
@@ -53,46 +72,47 @@ body {
   min-height: 100vh;
   min-height: -webkit-fill-available; /* iOS Safari */
   background: transparent;
+  position: relative;
 }
 
-/* Safe area padding class for content */
+/* Status bar background for iPhone */
+#root::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: 
+    radial-gradient(at 27% 37%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 10% 29%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
+    radial-gradient(at 97% 96%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    radial-gradient(at 33% 50%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 79% 53%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
+    #000000;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Safe area padding class for content - ensures proper spacing on iPhone */
 .safe-area-padding {
   padding-top: max(env(safe-area-inset-top, 0px), 0px);
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
-  padding-left: max(env(safe-area-inset-left, 0px), 0px);
-  padding-right: max(env(safe-area-inset-right, 0px), 0px);
+  /* Add minimum horizontal padding plus safe area insets for iPhone spacing */
+  padding-left: max(calc(env(safe-area-inset-left, 0px) + 1rem), 1rem);
+  padding-right: max(calc(env(safe-area-inset-right, 0px) + 1rem), 1rem);
 }
 
-/* Prevent pull-to-refresh */
-body {
-  overscroll-behavior-y: contain;
+/* Custom scrollbar for lists - hidden but scrollable */
+.custom-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
-/* Safe area padding for iPhone */
-.safe-area-padding {
-  padding-top: max(env(safe-area-inset-top), 0px);
-  padding-bottom: max(env(safe-area-inset-bottom), 0px);
-  padding-left: max(env(safe-area-inset-left), 0px);
-  padding-right: max(env(safe-area-inset-right), 0px);
-}
-
-/* Custom scrollbar for lists */
 .custom-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.custom-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  display: none; /* Chrome, Safari, Edge */
 }
 
 /* Modern gradient backgrounds - now on html element */

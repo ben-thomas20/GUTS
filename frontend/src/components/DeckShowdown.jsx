@@ -52,7 +52,7 @@ export default function DeckShowdown() {
   const isWinner = isPlayer && playerWon
 
   return (
-    <div className="w-full min-h-full flex flex-col px-6 pb-6">
+    <div className="w-full min-h-full flex flex-col pb-6 safe-area-padding">
       {/* Header */}
       <div className="text-center mb-4 flex-shrink-0">
         <h2 className="text-white text-2xl sm:text-3xl font-black mb-2">
