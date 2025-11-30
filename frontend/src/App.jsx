@@ -30,9 +30,11 @@ function App() {
   }
 
   return (
-    <div className="w-screen h-screen bg-black overflow-hidden gradient-mesh">
-      {renderScreen()}
-      <Notification />
+    <div className="w-full min-h-screen bg-black gradient-mesh safe-area-padding">
+      <div className="w-full min-h-screen flex flex-col">
+        {renderScreen()}
+        <Notification />
+      </div>
     </div>
   )
 }

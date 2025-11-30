@@ -75,7 +75,7 @@ export default function GameRoom() {
   const showDeckShowdown = showdownData
 
   return (
-    <div className="h-full flex flex-col p-4 safe-area-padding">
+    <div className="min-h-full flex flex-col p-4 pb-6 safe-area-padding">
       {/* Header Info */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 mb-4">
         <div className="bg-white/10 rounded-xl border border-white/20 p-4 text-center">
@@ -102,13 +102,13 @@ export default function GameRoom() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col justify-center items-center overflow-hidden">
+      <div className="flex-1 flex flex-col justify-center items-center min-h-0">
         {showDeckShowdown ? (
-          <div className="w-full h-full">
+          <div className="w-full min-h-full">
             <DeckShowdown />
           </div>
         ) : showReveal ? (
-          <div className="w-full h-full overflow-y-auto">
+          <div className="w-full min-h-full overflow-y-auto">
             <RevealScreen />
           </div>
         ) : (

@@ -15,14 +15,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #000000;
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari */
 }
 
 #root {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  width: 100%;
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari */
   background: #000000;
 }
 
@@ -39,6 +42,14 @@ body {
 /* Prevent pull-to-refresh */
 body {
   overscroll-behavior-y: contain;
+}
+
+/* Safe area padding for iPhone */
+.safe-area-padding {
+  padding-top: max(env(safe-area-inset-top), 0px);
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
 }
 
 /* Custom scrollbar for lists */
