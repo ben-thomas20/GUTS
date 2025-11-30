@@ -9,7 +9,7 @@
 
 ### 2. Deploy Backend
 - **New Service** → GitHub Repo
-- **Root Directory**: `backend`
+- **Settings** → **Source** → **Root Directory**: `backend` ⚠️ **MUST SET THIS**
 - **Variables**:
   ```
   PORT=3001
@@ -20,7 +20,7 @@
 
 ### 3. Deploy Frontend
 - **New Service** → GitHub Repo  
-- **Root Directory**: `frontend`
+- **Settings** → **Source** → **Root Directory**: `frontend` ⚠️ **MUST SET THIS**
 - **Variables**:
   ```
   VITE_API_URL=https://your-backend-url.railway.app

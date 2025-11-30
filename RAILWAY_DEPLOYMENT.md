@@ -28,8 +28,9 @@ This guide will help you deploy both the frontend and backend of the Guts Card G
 
 4. **Configure the Backend Service:**
    - **Name**: `guts-backend` (or any name you prefer)
-   - **Root Directory**: `backend`
-   - Railway will auto-detect Node.js and use `nixpacks.toml`
+   - **Root Directory**: `backend` ⚠️ **CRITICAL: Must be set to `backend`**
+   - Railway will auto-detect Node.js and use `backend/nixpacks.toml`
+   - **Settings** → **Source** → Set **Root Directory** to `backend`
 
 5. **Add Environment Variables:**
    - Go to the service → **Variables** tab
@@ -58,8 +59,9 @@ This guide will help you deploy both the frontend and backend of the Guts Card G
 
 4. **Configure the Frontend Service:**
    - **Name**: `guts-frontend` (or any name you prefer)
-   - **Root Directory**: `frontend`
-   - Railway will auto-detect and use `nixpacks.toml`
+   - **Root Directory**: `frontend` ⚠️ **CRITICAL: Must be set to `frontend`**
+   - Railway will auto-detect and use `frontend/nixpacks.toml`
+   - **Settings** → **Source** → Set **Root Directory** to `frontend`
 
 5. **Add Environment Variables:**
    - Go to the service → **Variables** tab
@@ -148,11 +150,20 @@ The project includes these Railway configuration files:
 
 ## Troubleshooting
 
+### "Error creating build plan with Railpack"
+- **Most Common Fix**: Ensure **Root Directory** is set correctly in Railway service settings
+  - Backend service: Root Directory = `backend`
+  - Frontend service: Root Directory = `frontend`
+- Go to **Settings** → **Source** → **Root Directory** and verify it's set
+- If Root Directory is not set, Railway tries to build from repository root and fails
+- After setting Root Directory, trigger a new deployment
+
 ### Backend won't start
 - Check logs in Railway dashboard
 - Verify `PORT` environment variable is set
 - Ensure `server.js` exists in `backend/` directory
 - Check that server binds to `0.0.0.0` (already configured)
+- Verify Root Directory is set to `backend`
 
 ### Frontend won't build
 - Check build logs in Railway dashboard
