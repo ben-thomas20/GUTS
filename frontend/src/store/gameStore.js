@@ -578,6 +578,13 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
+  endGame: () => {
+    const { socket } = get()
+    if (socket) {
+      socket.emit('end_game', {})
+    }
+  },
+  
   buyBackIn: (amount) => {
     const { socket, debtAmount } = get()
     if (!socket) {

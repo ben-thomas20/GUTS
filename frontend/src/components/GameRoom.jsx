@@ -17,7 +17,9 @@ export default function GameRoom() {
     revealData,
     showdownData,
     showBuyBackModal,
-    makeDecision
+    makeDecision,
+    isHost,
+    endGame
   } = useGameStore()
 
   const [isDealing, setIsDealing] = useState(false)
@@ -75,8 +77,26 @@ export default function GameRoom() {
   // Only show deck showdown if we have showdown data (skip reveal if going straight to showdown)
   const showDeckShowdown = showdownData
 
+  const handleEndGame = () => {
+    if (window.confirm('Are you sure you want to end the game? This will end the game for all players.')) {
+      endGame()
+    }
+  }
+
   return (
-    <div className="min-h-full flex flex-col pt-6 pb-6 safe-area-padding">
+    <div className="min-h-full flex flex-col pt-6 pb-6 safe-area-padding relative">
+      {/* Exit Game Button (Host Only) */}
+      {isHost && (
+        <button
+          onClick={handleEndGame}
+          className="absolute top-6 right-4 z-50 bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-lg active:scale-95 transition-all"
+          style={{ minHeight: '32px' }}
+          title="End Game"
+        >
+          Exit Game
+        </button>
+      )}
+      
       {/* Header Info */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 mb-4">
         <div className="bg-white/10 rounded-xl border border-white/20 p-4 text-center">

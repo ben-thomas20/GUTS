@@ -920,6 +920,35 @@ class GameManager {
     }
   }
   
+  handleEndGame(socket) {
+    const playerInfo = this.socketPlayers.get(socket.id);
+    if (!playerInfo) {
+      socket.emit('error', { message: 'Player not found' });
+      return;
+    }
+    
+    const game = this.getGame(playerInfo.roomCode);
+    if (!game) {
+      socket.emit('error', { message: 'Game not found' });
+      return;
+    }
+    
+    const player = game.players.find(p => p.id === playerInfo.playerId);
+    if (!player) {
+      socket.emit('error', { message: 'Player not in game' });
+      return;
+    }
+    
+    // Only host can end the game
+    if (!player.isHost) {
+      socket.emit('error', { message: 'Only the host can end the game' });
+      return;
+    }
+    
+    // End the game
+    this.endGame(game);
+  }
+  
   handleDisconnect(socket) {
     const playerInfo = this.socketPlayers.get(socket.id);
     if (!playerInfo) return;
