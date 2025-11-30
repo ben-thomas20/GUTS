@@ -3,6 +3,35 @@ import { io } from 'socket.io-client'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+// LocalStorage helpers for persistence
+const STORAGE_KEY = 'guts_game_session'
+
+const saveSessionToStorage = (roomCode, playerToken, playerName) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ roomCode, playerToken, playerName }))
+  } catch (e) {
+    console.error('Failed to save session to localStorage:', e)
+  }
+}
+
+const loadSessionFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch (e) {
+    console.error('Failed to load session from localStorage:', e)
+    return null
+  }
+}
+
+const clearSessionFromStorage = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch (e) {
+    console.error('Failed to clear session from localStorage:', e)
+  }
+}
+
 export const useGameStore = create((set, get) => ({
   // Connection state
   socket: null,
@@ -61,11 +90,27 @@ export const useGameStore = create((set, get) => ({
     socket.on('connect', () => {
       set({ socket, connected: true })
       console.log('Connected to server')
+      
+      // Auto-rejoin if we have stored session info
+      const session = loadSessionFromStorage()
+      if (session && session.roomCode && session.playerToken && session.playerName) {
+        console.log('Auto-rejoining room after reconnection...')
+        set({
+          roomCode: session.roomCode,
+          playerToken: session.playerToken,
+          playerName: session.playerName
+        })
+        get().joinRoom(session.roomCode, session.playerToken, session.playerName)
+      }
     })
     
     socket.on('disconnect', () => {
       set({ connected: false })
-      get().showNotification('Disconnected from server', 'error')
+      // Don't show error notification on disconnect - it might be temporary
+      // Only show if we're actually in a game
+      if (get().gameState !== 'landing') {
+        get().showNotification('Disconnected from server. Reconnecting...', 'info')
+      }
     })
     
     socket.on('error', (data) => {
@@ -75,7 +120,7 @@ export const useGameStore = create((set, get) => ({
     socket.on('room_joined', (data) => {
       const myPlayer = data.players.find(p => p.id === data.playerId)
       set({
-        gameState: 'lobby',
+        gameState: data.gameState.state || 'lobby', // Use state from server (could be 'lobby' or 'playing')
         playerId: data.playerId,
         players: data.players.map(p => ({
           ...p,
@@ -90,6 +135,12 @@ export const useGameStore = create((set, get) => ({
       const player = data.players.find(p => p.id === data.playerId)
       if (player) {
         set({ isHost: player.isHost })
+      }
+      
+      // Update localStorage with current session
+      const { roomCode, playerToken, playerName } = get()
+      if (roomCode && playerToken && playerName) {
+        saveSessionToStorage(roomCode, playerToken, playerName)
       }
     })
     
@@ -238,10 +289,12 @@ export const useGameStore = create((set, get) => ({
   },
   
   disconnect: () => {
+    // Don't actually disconnect - let socket.io handle reconnection
+    // Only clear the socket reference if explicitly leaving
     const { socket } = get()
     if (socket) {
-      socket.disconnect()
-      set({ socket: null, connected: false })
+      // Don't call socket.disconnect() - let it handle reconnection automatically
+      // Just clear the reference if needed
     }
   },
   
@@ -258,6 +311,9 @@ export const useGameStore = create((set, get) => ({
         playerToken: data.hostToken,
         playerName
       })
+      
+      // Save to localStorage for reconnection
+      saveSessionToStorage(data.roomCode, data.hostToken, playerName)
       
       get().joinRoom(data.roomCode, data.hostToken, playerName)
     } catch (error) {
@@ -285,6 +341,9 @@ export const useGameStore = create((set, get) => ({
         playerToken: data.playerToken,
         playerName
       })
+      
+      // Save to localStorage for reconnection
+      saveSessionToStorage(data.roomCode, data.playerToken, playerName)
       
       get().joinRoom(data.roomCode, data.playerToken, playerName)
     } catch (error) {
@@ -343,6 +402,10 @@ export const useGameStore = create((set, get) => ({
     if (socket) {
       socket.emit('leave_game')
     }
+    
+    // Clear localStorage when explicitly leaving
+    clearSessionFromStorage()
+    
     set({
       gameState: 'landing',
       roomCode: null,

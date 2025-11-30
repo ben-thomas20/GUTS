@@ -11,8 +11,9 @@ function App() {
 
   useEffect(() => {
     initSocket()
-    return () => disconnect()
-  }, [initSocket, disconnect])
+    // Don't disconnect on unmount - let socket.io handle reconnection automatically
+    // This allows players to leave the site and come back without losing connection
+  }, [initSocket])
 
   const renderScreen = () => {
     switch (gameState) {

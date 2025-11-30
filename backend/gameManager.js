@@ -61,18 +61,20 @@ class GameManager {
       return;
     }
     
-    if (game.state !== 'lobby') {
+    // Check if player already exists (reconnection)
+    let player = game.players.find(p => p.token === playerToken);
+    
+    // Only allow new players to join if game is in lobby
+    if (!player && game.state !== 'lobby') {
       socket.emit('error', { message: 'Game already started' });
       return;
     }
     
-    if (game.players.length >= 8) {
+    // Only check player limit for new players
+    if (!player && game.players.length >= 8) {
       socket.emit('error', { message: 'Game is full' });
       return;
     }
-    
-    // Check if player already exists (reconnection)
-    let player = game.players.find(p => p.token === playerToken);
     
     if (!player) {
       player = {
