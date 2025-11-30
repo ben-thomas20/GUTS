@@ -1,16 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 
 export default function Lobby() {
-  const [buyInAmount, setBuyInAmount] = useState(20)
-  const { roomCode, players, isHost, startGame, leaveGame } = useGameStore()
+  const { roomCode, players, isHost, playerId, myBuyInAmount, setMyBuyIn, startGame, leaveGame } = useGameStore()
+  const [localBuyIn, setLocalBuyIn] = useState(myBuyInAmount || 20)
+
+  // Sync local buy-in with store
+  useEffect(() => {
+    setLocalBuyIn(myBuyInAmount || 20)
+  }, [myBuyInAmount])
+
+  const handleBuyInChange = (amount) => {
+    setLocalBuyIn(amount)
+    setMyBuyIn(amount)
+  }
 
   const handleStartGame = () => {
     if (players.length < 2) {
       alert('Need at least 2 players to start')
       return
     }
-    startGame(buyInAmount)
+    startGame()
   }
 
   const copyRoomCode = () => {
@@ -34,28 +44,27 @@ export default function Lobby() {
         </div>
       </div>
 
-      {/* Buy-in Settings (Host Only) */}
-      {isHost && (
-        <div className="flex-shrink-0 bg-white/10 rounded-xl border border-white/20 p-5 mb-4">
-          <label className="block text-white/80 text-sm font-bold tracking-wide mb-3 uppercase">
-            Buy-in Amount
-          </label>
-          <div className="flex items-center space-x-4">
-            <input
-              type="range"
-              min="5"
-              max="100"
-              step="5"
-              value={buyInAmount}
-              onChange={(e) => setBuyInAmount(Number(e.target.value))}
-              className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-            <div className="text-3xl font-bold text-white bg-white/10 px-5 py-2 rounded-lg min-w-[90px] text-center border border-white/20">
-              ${buyInAmount}
-            </div>
+      {/* Buy-in Settings - All Players */}
+      <div className="flex-shrink-0 bg-white/10 rounded-xl border border-white/20 p-5 mb-4">
+        <label className="block text-white/80 text-sm font-bold tracking-wide mb-3 uppercase">
+          Your Buy-in Amount
+        </label>
+        <div className="flex items-center space-x-4">
+          <input
+            type="range"
+            min="5"
+            max="100"
+            step="5"
+            value={localBuyIn}
+            onChange={(e) => handleBuyInChange(Number(e.target.value))}
+            className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+          <div className="text-3xl font-bold text-white bg-white/10 px-5 py-2 rounded-lg min-w-[90px] text-center border border-white/20">
+            ${localBuyIn}
           </div>
         </div>
-      )}
+        <p className="text-white/50 text-xs mt-2 font-medium">Each player sets their own buy-in</p>
+      </div>
 
       {/* Players List */}
       <div className="flex-1 bg-white/10 rounded-xl border border-white/20 p-4 mb-4 overflow-hidden flex flex-col">
@@ -72,7 +81,10 @@ export default function Lobby() {
                 <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-lg">
                   {player.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="text-white font-semibold">{player.name}</span>
+                <div>
+                  <span className="text-white font-semibold">{player.name}</span>
+                  <p className="text-white/60 text-xs font-medium">Buy-in: ${(player.buyInAmount || 20).toFixed(0)}</p>
+                </div>
               </div>
               {player.isHost && (
                 <span className="bg-orange-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-lg">

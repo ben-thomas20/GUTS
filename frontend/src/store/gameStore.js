@@ -21,6 +21,7 @@ export const useGameStore = create((set, get) => ({
   
   // Game data
   buyInAmount: 20,
+  myBuyInAmount: 20, // Individual player's buy-in
   pot: 0,
   round: 0,
   isNothingRound: true,
@@ -38,6 +39,8 @@ export const useGameStore = create((set, get) => ({
   // Reveal state
   revealData: null,
   showdownData: null,
+  showdownResult: null,
+  showdownPhase: null, // 'transition', 'dealing', 'result'
   multipleHoldersResult: null,
   
   // Final results
@@ -70,13 +73,18 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('room_joined', (data) => {
+      const myPlayer = data.players.find(p => p.id === data.playerId)
       set({
         gameState: 'lobby',
         playerId: data.playerId,
-        players: data.players,
+        players: data.players.map(p => ({
+          ...p,
+          buyInAmount: p.buyInAmount || 20
+        })),
         pot: data.gameState.pot,
         round: data.gameState.round,
-        buyInAmount: data.gameState.buyInAmount
+        buyInAmount: data.gameState.buyInAmount,
+        myBuyInAmount: myPlayer?.buyInAmount || data.gameState.buyInAmount || 20
       })
       
       const player = data.players.find(p => p.id === data.playerId)
@@ -87,7 +95,10 @@ export const useGameStore = create((set, get) => ({
     
     socket.on('player_joined', (data) => {
       set(state => ({
-        players: [...state.players, data.player]
+        players: [...state.players, {
+          ...data.player,
+          buyInAmount: data.player.buyInAmount || 20
+        }]
       }))
       get().showNotification(`${data.player.name} joined`, 'info')
     })
@@ -102,9 +113,24 @@ export const useGameStore = create((set, get) => ({
     socket.on('game_started', (data) => {
       set({
         gameState: 'playing',
-        buyInAmount: data.buyInAmount,
-        players: data.players
+        players: data.players.map(p => ({
+          ...p,
+          buyInAmount: p.buyInAmount || 20
+        }))
       })
+    })
+    
+    socket.on('buy_in_updated', (data) => {
+      set({
+        players: data.players.map(p => ({
+          ...p,
+          buyInAmount: p.buyInAmount || 20
+        }))
+      })
+      // Update my buy-in if it's for this player
+      if (data.playerId === get().playerId) {
+        set({ myBuyInAmount: data.buyInAmount })
+      }
     })
     
     socket.on('round_started', (data) => {
@@ -117,16 +143,22 @@ export const useGameStore = create((set, get) => ({
         decidedPlayers: [],
         revealData: null,
         showdownData: null,
+        showdownResult: null,
+        showdownPhase: null,
         multipleHoldersResult: null
+        // Don't clear myCards here - wait for cards_dealt to set them
       })
     })
     
     socket.on('cards_dealt', (data) => {
-      set({
-        myCards: data.cards,
-        round: data.round,
-        isNothingRound: data.isNothingRound
-      })
+      // Only accept cards if they're for this player (or if no playerId specified, assume it's for us)
+      if (!data.playerId || data.playerId === get().playerId) {
+        set({
+          myCards: data.cards,
+          round: data.round,
+          isNothingRound: data.isNothingRound
+        })
+      }
     })
     
     socket.on('timer_started', (data) => {
@@ -177,23 +209,22 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('single_holder_vs_deck', (data) => {
-      set({ showdownData: data })
+      set({ 
+        revealData: null, // Clear reveal data to skip PVP comparison
+        showdownData: data,
+        showdownPhase: 'transition' // Start transition phase
+      })
     })
     
     socket.on('deck_showdown_result', (data) => {
-      if (data.gameEnded) {
-        set({ gameState: 'ended' })
-      } else {
-        set(state => ({
-          pot: data.newPot,
-          players: state.players.map(p => {
-            if (data.loser && p.id === data.loser.playerId) {
-              return { ...p, balance: data.newBalance }
-            }
-            return p
-          })
-        }))
-      }
+      set({ 
+        showdownResult: data,
+        showdownPhase: 'result' // Show result phase
+      })
+      
+      // Don't auto-advance - wait for host to continue
+      // If game ended, host will call endGame
+      // If game continues, host will call nextRound
     })
     
     socket.on('game_ended', (data) => {
@@ -268,10 +299,18 @@ export const useGameStore = create((set, get) => ({
     }
   },
   
-  startGame: (buyInAmount) => {
+  setMyBuyIn: (amount) => {
+    set({ myBuyInAmount: amount })
     const { socket } = get()
     if (socket) {
-      socket.emit('start_game', { buyInAmount })
+      socket.emit('set_buy_in', { buyInAmount: amount })
+    }
+  },
+  
+  startGame: () => {
+    const { socket } = get()
+    if (socket) {
+      socket.emit('start_game', {})
     }
   },
   
@@ -284,8 +323,17 @@ export const useGameStore = create((set, get) => ({
   },
   
   nextRound: () => {
-    const { socket } = get()
+    const { socket, showdownResult } = get()
     if (socket) {
+      // Clear showdown state
+      set({
+        showdownData: null,
+        showdownResult: null,
+        showdownPhase: null
+      })
+      
+      // If in showdown and game ended, the backend will handle ending
+      // Otherwise, continue to next round
       socket.emit('next_round', {})
     }
   },

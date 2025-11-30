@@ -80,6 +80,7 @@ class GameManager {
         token: playerToken,
         name: playerName,
         balance: 0,
+        buyInAmount: 20, // Default buy-in for new player
         isHost: game.players.length === 0 && playerToken === game.hostToken,
         isActive: true,
         socketId: socket.id
@@ -89,6 +90,10 @@ class GameManager {
       // Reconnection
       player.socketId = socket.id;
       player.isActive = true;
+      // Ensure buyInAmount exists for reconnecting players
+      if (!player.buyInAmount) {
+        player.buyInAmount = 20;
+      }
     }
     
     this.playerSockets.set(player.id, socket);
@@ -104,13 +109,14 @@ class GameManager {
         id: p.id,
         name: p.name,
         isHost: p.isHost,
-        balance: p.balance
+        balance: p.balance,
+        buyInAmount: p.buyInAmount || 20
       })),
       gameState: {
         state: game.state,
         round: game.round,
         pot: game.pot,
-        buyInAmount: game.buyInAmount
+        buyInAmount: player.buyInAmount || 20
       }
     });
     
@@ -120,12 +126,45 @@ class GameManager {
         id: player.id,
         name: player.name,
         isHost: player.isHost,
-        balance: player.balance
+        balance: player.balance,
+        buyInAmount: player.buyInAmount || 20
       }
     });
   }
   
-  handleStartGame(socket, data) {
+  handleSetBuyIn(socket, data) {
+    const playerInfo = this.socketPlayers.get(socket.id);
+    if (!playerInfo) return;
+    
+    const game = this.getGame(playerInfo.roomCode);
+    if (!game) return;
+    
+    const player = game.players.find(p => p.id === playerInfo.playerId);
+    if (!player) return;
+    
+    const { buyInAmount } = data;
+    if (buyInAmount < 5 || buyInAmount > 100) {
+      socket.emit('error', { message: 'Buy-in must be between $5 and $100' });
+      return;
+    }
+    
+    player.buyInAmount = buyInAmount;
+    
+    // Notify all players of the buy-in change
+    this.io.to(game.roomCode).emit('buy_in_updated', {
+      playerId: player.id,
+      buyInAmount: buyInAmount,
+      players: game.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost,
+        balance: p.balance,
+        buyInAmount: p.buyInAmount || 20
+      }))
+    });
+  }
+  
+  async handleStartGame(socket, data) {
     const playerInfo = this.socketPlayers.get(socket.id);
     if (!playerInfo) return;
     
@@ -143,26 +182,46 @@ class GameManager {
       return;
     }
     
-    const { buyInAmount } = data;
-    if (buyInAmount < 5 || buyInAmount > 100) {
-      socket.emit('error', { message: 'Buy-in must be between $5 and $100' });
+    // Validate all player buy-ins
+    const invalidBuyIn = game.players.find(p => {
+      const buyIn = p.buyInAmount || 20;
+      return buyIn < 5 || buyIn > 100;
+    });
+    
+    if (invalidBuyIn) {
+      socket.emit('error', { message: 'All buy-ins must be between $5 and $100' });
       return;
     }
     
-    game.buyInAmount = buyInAmount;
     game.state = 'playing';
     
-    // Set all players' balances to buy-in amount
+    // Set each player's balance to their individual buy-in amount
     game.players.forEach(p => {
-      p.balance = buyInAmount;
+      p.balance = p.buyInAmount || 20;
     });
     
+    // Ensure all player sockets are properly mapped
+    try {
+      const socketsInRoom = await this.io.in(game.roomCode).fetchSockets();
+      socketsInRoom.forEach(s => {
+        const socketPlayerInfo = this.socketPlayers.get(s.id);
+        if (socketPlayerInfo && socketPlayerInfo.roomCode === game.roomCode) {
+          const player = game.players.find(p => p.id === socketPlayerInfo.playerId);
+          if (player) {
+            this.playerSockets.set(player.id, s);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error mapping sockets:', error);
+    }
+    
     this.io.to(game.roomCode).emit('game_started', {
-      buyInAmount,
       players: game.players.map(p => ({
         id: p.id,
         name: p.name,
-        balance: p.balance
+        balance: p.balance,
+        buyInAmount: p.buyInAmount || 20
       }))
     });
     
@@ -203,29 +262,30 @@ class GameManager {
       const cards = dealCards(game.deck, 3);
       game.currentHands.set(player.id, cards);
       
-      // Send cards only to that player
-      const playerSocket = this.playerSockets.get(player.id);
-      if (playerSocket) {
-        playerSocket.emit('cards_dealt', {
-          cards,
-          round: game.round,
-          isNothingRound: game.isNothingRound
-        });
-      }
+      // Send cards only to that player - use room broadcast with playerId filter
+      // This is more reliable than socket mapping
+      this.io.to(game.roomCode).emit('cards_dealt', {
+        cards,
+        round: game.round,
+        isNothingRound: game.isNothingRound,
+        playerId: player.id // Client will filter this
+      });
     });
     
-    // Broadcast round start to all players
-    this.io.to(game.roomCode).emit('round_started', {
-      round: game.round,
-      pot: game.pot,
-      isNothingRound: game.isNothingRound,
-      players: game.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        balance: p.balance,
-        isActive: p.isActive
-      }))
-    });
+    // Broadcast round start to all players (after cards are sent)
+    setTimeout(() => {
+      this.io.to(game.roomCode).emit('round_started', {
+        round: game.round,
+        pot: game.pot,
+        isNothingRound: game.isNothingRound,
+        players: game.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          balance: p.balance,
+          isActive: p.isActive
+        }))
+      });
+    }, 200); // Small delay to ensure cards_dealt arrives first
     
     // Start decision timer
     this.startDecisionTimer(game);
@@ -306,21 +366,22 @@ class GameManager {
       cards: game.decisions.get(p.id) === 'hold' ? game.currentHands.get(p.id) : null
     }));
     
-    // Reveal all decisions
-    this.io.to(game.roomCode).emit('round_reveal', {
-      decisions: decisionsData,
-      pot: game.pot
-    });
-    
     // Determine holders
     const holders = activePlayers.filter(p => game.decisions.get(p.id) === 'hold');
     
+    // Wait 2 seconds for card animations to complete before revealing
     setTimeout(() => {
       if (holders.length === 0) {
         // Everyone dropped - each player adds $0.50 to pot
         activePlayers.forEach(p => {
           p.balance -= 0.50;
           game.pot += 0.50;
+        });
+        
+        // Show reveal screen for all dropped
+        this.io.to(game.roomCode).emit('round_reveal', {
+          decisions: decisionsData,
+          pot: game.pot
         });
         
         this.io.to(game.roomCode).emit('all_dropped', { 
@@ -332,13 +393,21 @@ class GameManager {
         });
         // Don't auto-advance - wait for host to click continue
       } else if (holders.length === 1) {
-        // Single holder vs THE DECK
+        // Single holder vs THE DECK - skip reveal, go directly to showdown
         this.handleDeckShowdown(game, holders[0]);
       } else {
-        // Multiple holders - compare hands
-        this.handleMultipleHolders(game, holders);
+        // Multiple holders - show reveal screen first
+        this.io.to(game.roomCode).emit('round_reveal', {
+          decisions: decisionsData,
+          pot: game.pot
+        });
+        
+        // Then compare hands after delay
+        setTimeout(() => {
+          this.handleMultipleHolders(game, holders);
+        }, 3000);
       }
-    }, 2000);
+    }, 2000); // 2 second buffer for animations
   }
   
   handleMultipleHolders(game, holders) {
@@ -427,7 +496,8 @@ class GameManager {
           gameEnded: true
         });
         
-        setTimeout(() => this.endGame(game), 3000);
+        // Mark game as ready to end - host will call next_round which will end it
+        game.pendingGameEnd = true;
       } else {
         // THE DECK wins - player matches pot, game continues
         const matchAmount = game.pot;
@@ -441,14 +511,15 @@ class GameManager {
             playerName: holder.name
           },
           matchAmount,
+          pot: matchAmount,
           newPot: game.pot,
           newBalance: holder.balance,
           gameEnded: false
         });
         
-        setTimeout(() => this.startNewRound(game), 5000);
+        // Don't auto-advance - wait for host to click continue
       }
-    }, 3000);
+    }, 5000); // Slower: 5 seconds for animations
   }
   
   endGame(game) {
@@ -495,9 +566,24 @@ class GameManager {
         p.balance = 0;
         p.isActive = true;
       });
+      
+      this.io.to(game.roomCode).emit('game_reset', {
+        players: game.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          isHost: p.isHost,
+          balance: p.balance
+        }))
+      });
     } else if (game.state === 'playing') {
-      // Continue to next round
-      this.startNewRound(game);
+      // Check if we need to end the game (from showdown result)
+      if (game.pendingGameEnd) {
+        game.pendingGameEnd = false;
+        this.endGame(game);
+      } else {
+        // Continue to next round
+        this.startNewRound(game);
+      }
     }
   }
   

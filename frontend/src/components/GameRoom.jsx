@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import Card from './Card'
 import Timer from './Timer'
@@ -18,9 +19,59 @@ export default function GameRoom() {
     makeDecision
   } = useGameStore()
 
+  const [isDealing, setIsDealing] = useState(false)
+  const [previousRound, setPreviousRound] = useState(0)
+  const [hasAnimatedDecision, setHasAnimatedDecision] = useState(false)
+  const [cardsTimeout, setCardsTimeout] = useState(false)
+
+  // Reset when round changes
+  useEffect(() => {
+    if (round !== previousRound) {
+      setPreviousRound(round)
+      setIsDealing(false)
+      setHasAnimatedDecision(false)
+      setCardsTimeout(false)
+    }
+  }, [round, previousRound])
+
+  // Trigger animation when new cards are dealt
+  useEffect(() => {
+    if (myCards.length > 0 && round === previousRound && !myDecision && !isDealing) {
+      // Cards received for current round, trigger dealing animation
+      setIsDealing(true)
+      setHasAnimatedDecision(false) // Reset decision animation for new round
+      setCardsTimeout(false) // Reset timeout flag
+      
+      // Reset animation state after animation completes
+      const timer = setTimeout(() => {
+        setIsDealing(false)
+      }, 1000) // Slightly longer than animation duration
+      
+      return () => clearTimeout(timer)
+    } else if (timerActive && myCards.length === 0) {
+      // Timer started but no cards yet - set timeout warning
+      const timeout = setTimeout(() => {
+        setCardsTimeout(true)
+      }, 3000) // 3 seconds after timer starts
+      
+      return () => clearTimeout(timeout)
+    } else if (myCards.length > 0 && myDecision) {
+      // If decision is made, stop dealing animation
+      setIsDealing(false)
+    }
+  }, [myCards.length, timerActive, myDecision, round, previousRound, isDealing])
+
+  // Trigger decision animation when decision is made
+  useEffect(() => {
+    if (myDecision && !hasAnimatedDecision) {
+      setHasAnimatedDecision(true)
+    }
+  }, [myDecision, hasAnimatedDecision])
+
   const showDecisionButtons = timerActive && !myDecision && myCards.length > 0
   const showWaiting = timerActive && myDecision
   const showReveal = revealData && !showdownData
+  // Only show deck showdown if we have showdown data (skip reveal if going straight to showdown)
   const showDeckShowdown = showdownData
 
   return (
@@ -53,7 +104,9 @@ export default function GameRoom() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col justify-center items-center overflow-hidden">
         {showDeckShowdown ? (
-          <DeckShowdown />
+          <div className="w-full h-full">
+            <DeckShowdown />
+          </div>
         ) : showReveal ? (
           <div className="w-full h-full overflow-y-auto">
             <RevealScreen />
@@ -62,11 +115,17 @@ export default function GameRoom() {
           <>
             {/* Player's Cards */}
             {myCards.length > 0 && (
-              <div className="mb-6">
-                <p className="text-white/60 text-sm text-center mb-4 font-semibold tracking-wide uppercase">Your Hand</p>
-                <div className="flex space-x-4 justify-center">
+              <div className={`${myDecision === 'hold' ? 'mb-12 mt-4' : 'mb-6'}`}>
+                <p className={`text-white/60 text-sm text-center font-semibold tracking-wide uppercase ${myDecision === 'hold' ? 'mb-6' : 'mb-4'}`}>Your Hand</p>
+                <div className={`flex justify-center ${myDecision === 'hold' ? 'gap-6' : 'space-x-4'}`}>
                   {myCards.map((card, index) => (
-                    <Card key={index} card={card} />
+                    <Card 
+                      key={`${card.rank}-${card.suit}-${index}-${myDecision || 'none'}`} 
+                      card={card} 
+                      index={index}
+                      isDealing={isDealing}
+                      decision={myDecision}
+                    />
                   ))}
                 </div>
               </div>
@@ -74,7 +133,7 @@ export default function GameRoom() {
 
             {/* Waiting Message */}
             {showWaiting && (
-              <div className="text-center bg-white/10 border border-white/20 rounded-xl p-6">
+              <div className={`text-center bg-white/10 border border-white/20 rounded-xl p-6 ${myDecision === 'hold' ? 'mt-8' : ''}`}>
                 <p className="text-white text-xl mb-2 font-semibold">
                   You chose to <span className="font-black text-blue-400">{myDecision.toUpperCase()}</span>
                 </p>
@@ -83,11 +142,27 @@ export default function GameRoom() {
             )}
 
             {/* No Cards Yet */}
-            {myCards.length === 0 && !revealData && (
+            {myCards.length === 0 && !revealData && !timerActive && (
               <div className="text-center text-white/50">
                 <div className="animate-pulse">
                   <p className="font-semibold">Waiting for cards...</p>
                 </div>
+              </div>
+            )}
+            
+            {/* Cards should arrive but haven't - show error after delay */}
+            {myCards.length === 0 && timerActive && !cardsTimeout && (
+              <div className="text-center text-white/50">
+                <div className="animate-pulse">
+                  <p className="font-semibold">Dealing cards...</p>
+                </div>
+              </div>
+            )}
+            
+            {myCards.length === 0 && cardsTimeout && (
+              <div className="text-center bg-red-500/20 border border-red-500/50 rounded-xl p-4">
+                <p className="text-red-400 font-semibold">Cards not received</p>
+                <p className="text-white/60 text-sm mt-1">Please refresh or contact support</p>
               </div>
             )}
           </>
