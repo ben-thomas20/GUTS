@@ -389,6 +389,19 @@ export const useGameStore = create((set, get) => ({
       }
     })
     
+    socket.on('round_blocked_debt', (data) => {
+      // Round is blocked due to debt - don't clear reveal/showdown data
+      // Just show notification to host
+      const { isHost } = get()
+      if (isHost) {
+        const playersList = [
+          ...(data.playersInDebt || []).map(p => `${p.playerName} (debt: $${p.debtAmount.toFixed(2)})`),
+          ...(data.playersLowOnFunds || []).map(p => `${p.playerName} (needs $${p.neededAmount.toFixed(2)})`)
+        ].join(', ')
+        get().showNotification(`Round blocked: ${playersList} must buy back first.`, 'error')
+      }
+    })
+    
     socket.on('buy_back_result', (data) => {
       set(state => {
         const updatedPlayers = state.players.map(p => {
@@ -555,12 +568,9 @@ export const useGameStore = create((set, get) => ({
   nextRound: () => {
     const { socket, showdownResult } = get()
     if (socket) {
-      // Clear showdown state
-      set({
-        showdownData: null,
-        showdownResult: null,
-        showdownPhase: null
-      })
+      // Don't clear state here - let the backend handle it
+      // If round is blocked due to debt, we want to keep showing the reveal/showdown
+      // The backend will clear state when it actually starts the next round
       
       // If in showdown and game ended, the backend will handle ending
       // Otherwise, continue to next round

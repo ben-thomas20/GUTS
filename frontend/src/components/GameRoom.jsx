@@ -16,6 +16,7 @@ export default function GameRoom() {
     myDecision,
     revealData,
     showdownData,
+    showBuyBackModal,
     makeDecision
   } = useGameStore()
 
@@ -141,8 +142,17 @@ export default function GameRoom() {
               </div>
             )}
 
+            {/* Show message if waiting for buy-back and no other content */}
+            {myCards.length === 0 && !revealData && !showdownData && !timerActive && showBuyBackModal && (
+              <div className="text-center bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 max-w-md">
+                <p className="text-yellow-400 text-xl font-bold mb-2">⚠️ Buy-Back Required</p>
+                <p className="text-white/80 font-medium mb-2">Please use the buy-back modal to continue playing.</p>
+                <p className="text-white/60 text-sm">The round cannot start until all players can afford the ante.</p>
+              </div>
+            )}
+            
             {/* No Cards Yet */}
-            {myCards.length === 0 && !revealData && !timerActive && (
+            {myCards.length === 0 && !revealData && !showdownData && !timerActive && !showBuyBackModal && (
               <div className="text-center text-white/50">
                 <div className="animate-pulse">
                   <p className="font-semibold">Waiting for cards...</p>
