@@ -25,11 +25,12 @@
   ```
   VITE_API_URL=https://your-backend-url.railway.app
   ```
+  ⚠️ **Must include `https://` protocol!**
 - **Generate Domain** → If asked for port, Railway usually auto-detects (or check logs for PORT value)
 - Copy URL
 
 ### 4. Update Backend
-- Update `FRONTEND_URL` with frontend domain
+- Update `FRONTEND_URL` with frontend domain (must include `https://`)
 - Auto-redeploys
 
 ## ✅ Done!

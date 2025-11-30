@@ -71,7 +71,10 @@ This guide will help you deploy both the frontend and backend of the Guts Card G
      ```
      VITE_API_URL=https://your-backend-url.railway.app
      ```
-     ⚠️ **Replace** `your-backend-url.railway.app` with your actual backend domain from Step 2
+     ⚠️ **IMPORTANT**: 
+     - **Must include `https://` protocol** (e.g., `https://backend-production-b494.up.railway.app`)
+     - Replace `your-backend-url.railway.app` with your actual backend domain from Step 2
+     - Without `https://`, the frontend cannot connect to the backend
 
 6. **Generate Public Domain:**
    - Go to **Settings** → **Networking**
