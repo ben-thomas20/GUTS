@@ -76,6 +76,8 @@ This guide will help you deploy both the frontend and backend of the Guts Card G
 6. **Generate Public Domain:**
    - Go to **Settings** → **Networking**
    - Click **"Generate Domain"**
+   - If prompted for a port: Railway usually auto-detects it, but if asked, check your service logs or environment variables for the `PORT` value Railway assigned (often 3000, 8080, or similar)
+   - The frontend uses `$PORT` from Railway's environment, so Railway should route correctly automatically
    - Copy the domain (e.g., `guts-frontend-production.up.railway.app`)
 
 7. **Deploy**: Railway will automatically deploy when you push to GitHub
