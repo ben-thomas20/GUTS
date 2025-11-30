@@ -200,61 +200,34 @@ The application will be available at:
 
 ## 🏭 Production Deployment
 
-### Build Frontend
+### Railway Deployment (Recommended)
 
-```bash
-cd frontend
-npm run build
-```
+The easiest way to deploy both frontend and backend is using Railway.
 
-This creates an optimized build in `frontend/dist/`
+**Quick Start:**
+1. See `RAILWAY_DEPLOYMENT.md` for detailed step-by-step instructions
+2. Or use `RAILWAY_QUICK_START.md` for a quick reference
 
-### Deploy Options
+**What you need:**
+- GitHub account
+- Railway account (free tier available)
+- Your code pushed to GitHub
 
-#### Option 1: Heroku
-
-1. Install Heroku CLI
-2. Create a Heroku app
-3. Set environment variables in Heroku dashboard
-4. Deploy:
-   ```bash
-   git push heroku main
-   ```
-
-#### Option 2: DigitalOcean / AWS / GCP
-
-1. Set up a server with Node.js
-2. Clone repository
-3. Install dependencies
-4. Set environment variables
-5. Use PM2 for process management:
-   ```bash
-   npm install -g pm2
-   pm2 start backend/server.js
-   ```
-6. Configure Nginx as reverse proxy
-7. Set up SSL with Let's Encrypt
-
-#### Option 3: Vercel (Frontend) + Railway (Backend)
-
-**Frontend (Vercel)**:
-1. Connect GitHub repository
-2. Set root directory to `frontend`
-3. Deploy
-
-**Backend (Railway)**:
-1. Connect GitHub repository
-2. Set root directory to `backend`
-3. Add environment variables
-4. Deploy
+Railway will automatically:
+- Detect Node.js projects
+- Use `nixpacks.toml` configuration files
+- Deploy on every push to main branch
+- Provide HTTPS URLs for both services
 
 ### Important Production Settings
 
-1. **Enable HTTPS/WSS** - Required for security
-2. **Update CORS origins** - Set to your production frontend URL
-3. **Set NODE_ENV=production**
-4. **Configure rate limiting** - Adjust based on expected traffic
-5. **Add monitoring** - Use services like Sentry for error tracking
+1. **Enable HTTPS/WSS** - Railway provides this automatically
+2. **Update CORS origins** - Set `FRONTEND_URL` environment variable
+3. **Set NODE_ENV=production** - Set in Railway environment variables
+4. **Configure rate limiting** - Already configured in backend
+5. **Environment Variables**:
+   - Backend: `PORT`, `NODE_ENV`, `FRONTEND_URL`
+   - Frontend: `VITE_API_URL`
 
 ## 🔒 Security Features
 
@@ -411,10 +384,18 @@ Change decision timer in `backend/gameManager.js`:
 
 ```javascript
 startDecisionTimer(game) {
-  const duration = 10;  // Change this value (seconds)
+  const duration = 30;  // Change this value (seconds) - currently 30 seconds
   // ...
 }
 ```
+
+## 📚 Documentation
+
+- **`README.md`** - This file, project overview and setup
+- **`GAME_RULES.md`** - Detailed game rules and mechanics
+- **`RAILWAY_DEPLOYMENT.md`** - Complete Railway deployment guide
+- **`RAILWAY_QUICK_START.md`** - Quick deployment reference
+- **`DEPLOYMENT_CHECKLIST.md`** - Pre-deployment verification checklist
 
 ## 📄 License
 
