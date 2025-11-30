@@ -12,10 +12,10 @@
 - **Settings** → **Source** → **Root Directory**: `backend` ⚠️ **MUST SET THIS**
 - **Variables**:
   ```
-  PORT=3001
   NODE_ENV=production
   FRONTEND_URL=https://your-frontend-url.railway.app
   ```
+  (PORT is auto-provided by Railway)
 - **Generate Domain** → Copy URL
 
 ### 3. Deploy Frontend

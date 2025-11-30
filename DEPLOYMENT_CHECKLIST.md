@@ -29,9 +29,9 @@
 2. [ ] Add backend service
 3. [ ] Set Root Directory: `backend`
 4. [ ] Add environment variables:
-   - `PORT=3001`
    - `NODE_ENV=production`
    - `FRONTEND_URL=https://your-frontend-url.railway.app` (update after frontend deploy)
+   - ⚠️ **Don't set PORT** - Railway provides it automatically
 5. [ ] Generate public domain
 6. [ ] Verify deployment succeeds
 7. [ ] Test health endpoint: `https://your-backend-url.railway.app/api/health`
@@ -61,10 +61,10 @@
 
 ### Backend Service
 ```bash
-PORT=3001
 NODE_ENV=production
 FRONTEND_URL=https://your-frontend-url.railway.app
 ```
+**Note**: `PORT` is automatically provided by Railway. The server binds to `0.0.0.0` (configured in server.js).
 
 ### Frontend Service
 ```bash
@@ -89,8 +89,8 @@ VITE_API_URL=https://your-backend-url.railway.app
 
 ### Backend Issues
 - Check Railway logs for errors
-- Verify PORT environment variable
-- Ensure server binds to 0.0.0.0
+- Railway automatically provides PORT (don't set it manually)
+- Server already binds to 0.0.0.0 (configured in server.js)
 - Check CORS configuration
 
 ### Frontend Issues

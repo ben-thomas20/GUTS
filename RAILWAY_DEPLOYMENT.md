@@ -36,11 +36,13 @@ This guide will help you deploy both the frontend and backend of the Guts Card G
    - Go to the service → **Variables** tab
    - Add these variables:
      ```
-     PORT=3001
      NODE_ENV=production
      FRONTEND_URL=https://your-frontend-url.railway.app
      ```
-     ⚠️ **Note**: You'll update `FRONTEND_URL` after deploying the frontend
+     ⚠️ **Note**: 
+     - `PORT` is automatically provided by Railway (don't set it manually)
+     - Server already binds to `0.0.0.0` (configured in server.js)
+     - You'll update `FRONTEND_URL` after deploying the frontend
 
 6. **Generate Public Domain:**
    - Go to **Settings** → **Networking**
@@ -115,10 +117,10 @@ This guide will help you deploy both the frontend and backend of the Guts Card G
 
 ### Backend Service:
 ```
-PORT=3001
 NODE_ENV=production
 FRONTEND_URL=https://your-frontend-url.railway.app
 ```
+**Note**: `PORT` is automatically provided by Railway - don't set it manually. The server binds to `0.0.0.0` automatically.
 
 ### Frontend Service:
 ```
