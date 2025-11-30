@@ -11,8 +11,8 @@ export default function RevealScreen() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scroll px-4 pb-4">
-        <h2 className="text-white text-3xl font-black text-center mb-6 pt-4 bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent">
+      <div className="flex-1 overflow-y-auto custom-scroll px-4 pt-4 pb-4">
+        <h2 className="text-white text-3xl font-black text-center mb-6 bg-gradient-to-r from-white via-white to-white/80 bg-clip-text text-transparent">
           Round Results
         </h2>
 
