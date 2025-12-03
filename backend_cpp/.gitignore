@@ -1,0 +1,11 @@
+build/
+*.o
+*.so
+*.a
+*.dylib
+guts_server
+.vscode/
+.idea/
+cmake-build-*/
+compile_commands.json
+

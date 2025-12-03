@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import { io } from 'socket.io-client'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const WS_URL = API_URL.replace('http://', 'ws://').replace('https://', 'wss://')
 
 // LocalStorage helpers for persistence
 const STORAGE_KEY = 'guts_game_session'
@@ -29,6 +29,122 @@ const clearSessionFromStorage = () => {
     localStorage.removeItem(STORAGE_KEY)
   } catch (e) {
     console.error('Failed to clear session from localStorage:', e)
+  }
+}
+
+// WebSocket wrapper to emulate socket.io interface
+class SocketWrapper {
+  constructor(url) {
+    this.url = url
+    this.ws = null
+    this.connected = false
+    this.reconnectDelay = 1000
+    this.reconnectAttempts = 0
+    this.maxReconnectDelay = 30000
+    this.eventHandlers = {}
+    this.messageQueue = []
+    this.shouldReconnect = true
+    
+    this.connect()
+  }
+  
+  connect() {
+    try {
+      this.ws = new WebSocket(`${this.url}/ws`)
+      
+      this.ws.onopen = () => {
+        console.log('WebSocket connected')
+        this.connected = true
+        this.reconnectAttempts = 0
+        this.reconnectDelay = 1000
+        
+        // Send queued messages
+        while (this.messageQueue.length > 0) {
+          const msg = this.messageQueue.shift()
+          this.ws.send(JSON.stringify(msg))
+        }
+        
+        if (this.eventHandlers['connect']) {
+          this.eventHandlers['connect'].forEach(handler => handler())
+        }
+      }
+      
+      this.ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          if (message.event && this.eventHandlers[message.event]) {
+            this.eventHandlers[message.event].forEach(handler => handler(message.data))
+          }
+        } catch (e) {
+          console.error('Failed to parse message:', e)
+        }
+      }
+      
+      this.ws.onclose = () => {
+        console.log('WebSocket disconnected')
+        this.connected = false
+        
+        if (this.eventHandlers['disconnect']) {
+          this.eventHandlers['disconnect'].forEach(handler => handler())
+        }
+        
+        // Attempt reconnection
+        if (this.shouldReconnect) {
+          this.reconnectAttempts++
+          const delay = Math.min(this.reconnectDelay * this.reconnectAttempts, this.maxReconnectDelay)
+          setTimeout(() => this.connect(), delay)
+        }
+      }
+      
+      this.ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error)
+      // Retry connection
+      if (this.shouldReconnect) {
+        setTimeout(() => this.connect(), this.reconnectDelay)
+      }
+    }
+  }
+  
+  on(event, handler) {
+    if (!this.eventHandlers[event]) {
+      this.eventHandlers[event] = []
+    }
+    this.eventHandlers[event].push(handler)
+  }
+  
+  once(event, handler) {
+    const wrappedHandler = (...args) => {
+      handler(...args)
+      this.off(event, wrappedHandler)
+    }
+    this.on(event, wrappedHandler)
+  }
+  
+  off(event, handler) {
+    if (this.eventHandlers[event]) {
+      this.eventHandlers[event] = this.eventHandlers[event].filter(h => h !== handler)
+    }
+  }
+  
+  emit(event, data) {
+    const message = { event, data }
+    
+    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message))
+    } else {
+      // Queue message for when connection is restored
+      this.messageQueue.push(message)
+    }
+  }
+  
+  disconnect() {
+    this.shouldReconnect = false
+    if (this.ws) {
+      this.ws.close()
+    }
   }
 }
 
@@ -108,13 +224,7 @@ export const useGameStore = create((set, get) => ({
   
   // Actions
   initSocket: () => {
-    const socket = io(API_URL, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: Infinity, // Keep trying to reconnect indefinitely
-      timeout: 20000
-    })
+    const socket = new SocketWrapper(WS_URL)
     
     socket.on('connect', () => {
       set({ socket, connected: true })
@@ -660,4 +770,3 @@ export const useGameStore = create((set, get) => ({
     }, 3000)
   }
 }))
-

@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ['cmake', 'gcc', 'openssl']
+
+[phases.build]
+cmds = [
+    'mkdir -p build',
+    'cd build && cmake ..',
+    'cd build && make -j$(nproc)'
+]
+
+[start]
+cmd = './build/guts_server'
+
