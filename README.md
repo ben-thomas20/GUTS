@@ -1,22 +1,6 @@
 # Guts Card Game - Multiplayer Web Application
 
-A high-performance real-time multiplayer card game with React frontend and C++ backend. Features lightning-fast game logic, low latency WebSocket communication, and excellent scalability.
-
-## 🚀 New: C++ Backend
-
-The game now features a **high-performance C++ backend** that provides:
-- ⚡ **15-20x faster** game logic execution
-- 💾 **13x lower** memory usage (6 MB vs 85 MB)
-- 🌐 **Sub-millisecond** WebSocket latency
-- 💰 **55-80% lower** hosting costs
-- 🔒 **Cryptographically secure** card shuffling with OpenSSL
-
-**Quick Start**: See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) to get started in 5 minutes!
-
-For detailed information about the C++ backend, see:
-- [C++ Backend README](backend_cpp/README.md)
-- [Migration Guide](CPP_MIGRATION.md)
-- [Backend Comparison](BACKEND_COMPARISON.md)
+A high-performance real-time multiplayer card game with React frontend and C++ backend. Features lightning-fast game logic (15-20x faster than Node.js), low latency WebSocket communication, and excellent scalability.
 
 ## 🎮 Game Rules
 
@@ -54,20 +38,16 @@ For detailed information about the C++ backend, see:
 
 ```
 GUTS/
-├── backend_cpp/         # High-performance C++ backend
+├── backend_cpp/         # C++ backend (production)
 │   ├── include/         # Header files
 │   ├── src/             # Implementation files
 │   ├── CMakeLists.txt   # Build configuration
-│   └── README.md        # C++ backend documentation
-├── frontend/            # React + Vite application
-│   ├── src/
-│   │   ├── components/  # React components
-│   │   ├── store/       # Zustand state management
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── index.html
+│   ├── Dockerfile       # Container deployment
+│   └── nixpacks.toml    # Railway deployment
+├── frontend/            # React frontend
+│   ├── src/             # React components and state
 │   └── package.json
-├── package.json         # Root workspace configuration
+├── start.sh             # Quick start script
 └── README.md
 ```
 
@@ -75,76 +55,51 @@ GUTS/
 
 ### Prerequisites
 
+**For C++ Backend:**
+- CMake 3.15+
+- C++17 compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- OpenSSL development libraries
+
+**For Frontend:**
 - Node.js 18+ and npm
-- Modern web browser (Safari/Chrome recommended for mobile)
 
-### Installation
+### Installation & Running
 
-1. **Clone or download the project**
+**Option 1: Use the start script (easiest)**
 
 ```bash
-cd GUTS
+./start.sh          # Builds and runs everything
 ```
 
-2. **Install all dependencies**
+**Option 2: Manual setup**
 
 ```bash
-npm run install:all
-```
+# Build C++ backend
+cd backend_cpp
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+./guts_server
 
-Or manually:
-
-```bash
-# Install root dependencies
+# In another terminal, run frontend
+cd frontend
 npm install
-
-# Install backend dependencies
-cd backend
-npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
-cd ..
-```
-
-3. **Set up environment variables**
-
-Create `.env` files from the examples:
-
-**Backend** (`backend/.env`):
-```env
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-```
-
-**Frontend** (`frontend/.env`):
-```env
-VITE_API_URL=http://localhost:3001
-```
-
-### Development Mode
-
-Run both frontend and backend simultaneously:
-
-```bash
 npm run dev
 ```
 
-Or run them separately:
-
+**macOS users**: If build fails, install dependencies:
 ```bash
-# Terminal 1 - Backend
-npm run dev:backend
+brew install cmake openssl
+```
 
-# Terminal 2 - Frontend
-npm run dev:frontend
+**Ubuntu/Debian users**:
+```bash
+sudo apt-get install build-essential cmake libssl-dev
 ```
 
 The application will be available at:
 - Frontend: http://localhost:5173
-- Backend: http://localhost:3001
+- Backend: http://localhost:3001 (WebSocket: ws://localhost:3001/ws)
 
 ## 📱 Mobile Testing
 
@@ -413,20 +368,26 @@ startDecisionTimer(game) {
 - **`RAILWAY_QUICK_START.md`** - Quick deployment reference
 - **`DEPLOYMENT_CHECKLIST.md`** - Pre-deployment verification checklist
 
+## 🚂 Railway Deployment
+
+Deploy to Railway in minutes:
+
+**1. Backend Service:**
+- Root Directory: `backend_cpp`
+- Environment Variable: `FRONTEND_URL=https://your-frontend.railway.app`
+- Railway auto-detects `nixpacks.toml` and builds
+
+**2. Frontend Service:**
+- Root Directory: `frontend`
+- Build Command: `npm run build`
+- Start Command: `npx serve -s dist -p $PORT`
+- Environment Variable: `VITE_API_URL=https://your-backend.railway.app`
+
+Railway will automatically build the C++ backend. First build takes ~2-3 minutes.
+
 ## 📄 License
 
 This project is open source and available for educational purposes.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## 📞 Support
-
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review browser console and backend logs
-3. Open an issue on GitHub
 
 ---
 
