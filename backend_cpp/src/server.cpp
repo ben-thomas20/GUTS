@@ -97,8 +97,7 @@ std::string generateSocketId() {
 int main() {
     crow::SimpleApp app;
     
-    // CORS middleware
-    auto& cors = app.get_middleware<crow::CORSHandler>();
+    // Get frontend URL for CORS (manual CORS headers are set on each route)
     std::string frontendUrl = std::getenv("FRONTEND_URL") ? 
         std::getenv("FRONTEND_URL") : "http://localhost:5173";
     
@@ -354,10 +353,12 @@ int main() {
     // Get port from environment or use default
     int port = std::getenv("PORT") ? std::atoi(std::getenv("PORT")) : 3001;
     
-    std::cout << "Starting C++ GUTS server on port " << port << std::endl;
+    std::cout << "Starting C++ GUTS server on 0.0.0.0:" << port << std::endl;
     std::cout << "Frontend URL: " << frontendUrl << std::endl;
     
-    app.port(port)
+    // Bind to 0.0.0.0 for Railway (not localhost)
+    app.bindaddr("0.0.0.0")
+       .port(port)
        .multithreaded()
        .run();
     
