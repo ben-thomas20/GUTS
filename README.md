@@ -54,16 +54,11 @@ For detailed information about the C++ backend, see:
 
 ```
 GUTS/
-├── backend_cpp/         # 🆕 High-performance C++ backend (RECOMMENDED)
+├── backend_cpp/         # High-performance C++ backend
 │   ├── include/         # Header files
 │   ├── src/             # Implementation files
 │   ├── CMakeLists.txt   # Build configuration
 │   └── README.md        # C++ backend documentation
-├── backend/             # Node.js backend (legacy, for development)
-│   ├── server.js        # Main server file
-│   ├── gameManager.js   # Game state and room management
-│   ├── gameLogic.js     # Card dealing and hand evaluation
-│   └── package.json
 ├── frontend/            # React + Vite application
 │   ├── src/
 │   │   ├── components/  # React components

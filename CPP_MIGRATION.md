@@ -2,7 +2,9 @@
 
 ## Overview
 
-The GUTS Card Game backend has been completely rewritten in C++ for superior performance, reliability, and scalability. This document provides a comprehensive guide to understanding the new architecture and deployment process.
+✅ **Migration Complete!** The GUTS Card Game now uses a high-performance C++ backend exclusively. The old Node.js backend has been removed.
+
+This document provides a comprehensive guide to understanding the new C++ architecture, performance improvements, and deployment process.
 
 ## Why C++?
 

@@ -207,5 +207,5 @@ The Node.js backend offers:
 - ✅ Lower learning curve
 - ✅ Better debugging tools
 
-**Recommendation**: Use C++ backend for production, keep Node.js backend for development/testing if needed.
+**Recommendation**: The project now uses the C++ backend exclusively. The old Node.js backend has been removed.
 
