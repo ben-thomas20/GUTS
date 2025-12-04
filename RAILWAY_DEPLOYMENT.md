@@ -109,10 +109,10 @@ railway variables set VITE_API_URL=https://your-backend.railway.app
 
 ### Backend Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `PORT` | Server port (auto-provided by Railway) | `3001` |
-| `FRONTEND_URL` | Frontend URL for CORS | `https://guts-frontend.railway.app` |
+| Variable | Description | Example | When Set |
+|----------|-------------|---------|----------|
+| `PORT` | Server port (auto-provided by Railway) | `3001` | Runtime |
+| `FRONTEND_URL` | Frontend URL for CORS | `https://guts-frontend.railway.app` | Runtime |
 
 ### Frontend Environment Variables
 
