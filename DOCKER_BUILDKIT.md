@@ -28,15 +28,11 @@ Railway has deprecated Nixpacks in favor of Docker with BuildKit. Benefits:
 - Copies: Only the compiled binary
 - Result: ~50% smaller than single-stage build
 
-### BuildKit Features Used
+### Multi-Stage Build Benefits
 
-```dockerfile
-# syntax=docker/dockerfile:1.4
-
-# Cache mount for faster rebuilds
-RUN --mount=type=cache,target=/app/build/CMakeFiles \
-    cmake && make
-```
+- Smaller runtime images (only necessary files)
+- Faster deployments (less data to transfer)
+- Better security (no build tools in production)
 
 ### Build Times
 
@@ -66,13 +62,11 @@ RUN --mount=type=cache,target=/app/build/CMakeFiles \
 - Serves: Static files on port specified by Railway
 - Size: ~50MB (runtime)
 
-### BuildKit Features Used
+### Optimized Build Process
 
-```dockerfile
-# Cache mount for npm dependencies
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
-```
+- Layer caching for package.json changes
+- Efficient npm ci for reproducible builds
+- Static file serving with minimal overhead
 
 ### Build Times
 
@@ -101,21 +95,13 @@ Optimizes build context by excluding unnecessary files:
 - CMake artifacts
 - Object files
 
-## BuildKit Cache Mounts
+## Layer Caching
 
-Railway automatically handles BuildKit cache persistence across builds.
+Railway uses Docker's standard layer caching:
 
-### Backend Cache
-```dockerfile
---mount=type=cache,target=/app/build/CMakeFiles
-```
-Persists CMake configuration between builds.
-
-### Frontend Cache
-```dockerfile
---mount=type=cache,target=/root/.npm
-```
-Persists npm packages between builds.
+- Separating dependency installation from source code copying
+- Leveraging BuildKit's automatic layer caching
+- Reusing unchanged layers across builds
 
 ## Environment Variables
 
