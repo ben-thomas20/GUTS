@@ -224,6 +224,13 @@ export const useGameStore = create((set, get) => ({
   
   // Actions
   initSocket: () => {
+    // Only create socket if one doesn't already exist
+    const existingSocket = get().socket
+    if (existingSocket) {
+      console.log('Socket already initialized')
+      return
+    }
+    
     const socket = new SocketWrapper(WS_URL)
     
     socket.on('connect', () => {
@@ -232,14 +239,17 @@ export const useGameStore = create((set, get) => ({
       
       // Auto-rejoin if we have stored session info
       const session = loadSessionFromStorage()
+      console.log('Checking localStorage session:', session)
       if (session && session.roomCode && session.playerToken && session.playerName) {
-        console.log('Auto-rejoining room after reconnection...')
+        console.log('Auto-rejoining room after reconnection...', session.roomCode)
         set({
           roomCode: session.roomCode,
           playerToken: session.playerToken,
           playerName: session.playerName
         })
         get().joinRoom(session.roomCode, session.playerToken, session.playerName)
+      } else {
+        console.log('No session to auto-rejoin')
       }
     })
     
@@ -263,7 +273,17 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('room_joined', (data) => {
+      console.log('room_joined event received:', data)
       const myPlayer = data.players.find(p => p.id === data.playerId)
+      
+      // IMPORTANT: Only save to localStorage on successful room join
+      // This prevents double-join issues on page load
+      const { roomCode, playerToken, playerName } = get()
+      console.log('Saving session to localStorage:', roomCode, playerToken, playerName)
+      if (roomCode && playerToken && playerName) {
+        saveSessionToStorage(roomCode, playerToken, playerName)
+      }
+      
       set({
         gameState: data.gameState.state || 'lobby', // Use state from server (could be 'lobby' or 'playing')
         playerId: data.playerId,
@@ -281,22 +301,29 @@ export const useGameStore = create((set, get) => ({
       if (player) {
         set({ isHost: player.isHost })
       }
-      
-      // Update localStorage with current session
-      const { roomCode, playerToken, playerName } = get()
-      if (roomCode && playerToken && playerName) {
-        saveSessionToStorage(roomCode, playerToken, playerName)
-      }
     })
     
     socket.on('player_joined', (data) => {
-      set(state => ({
+      set(state => {
+        // Don't add if player already exists (prevents duplicate when we join)
+        if (state.players.some(p => p.id === data.player.id)) {
+          console.log('Player already in list, skipping duplicate:', data.player.id)
+          return state
+        }
+        
+        return {
         players: [...state.players, {
           ...data.player,
           buyInAmount: data.player.buyInAmount || 20
         }]
-      }))
+        }
+      })
+      
+      // Only show notification if it's not us (we already know we joined)
+      const currentPlayerId = get().playerId
+      if (data.player.id !== currentPlayerId) {
       get().showNotification(`${data.player.name} joined`, 'info')
+      }
     })
     
     socket.on('player_left', (data) => {
@@ -607,11 +634,25 @@ export const useGameStore = create((set, get) => ({
   
   createGame: async (playerName) => {
     try {
+      // Clear any old session data first to prevent auto-rejoin conflicts
+      console.log('Clearing localStorage before creating game')
+      clearSessionFromStorage()
+      
       const response = await fetch(`${API_URL}/api/game/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
       const data = await response.json()
+      console.log('Game created:', data)
+      
+      if (!data.roomCode || !data.hostToken) {
+        throw new Error('Invalid response from server')
+      }
       
       set({
         roomCode: data.roomCode,
@@ -619,17 +660,20 @@ export const useGameStore = create((set, get) => ({
         playerName
       })
       
-      // Save to localStorage for reconnection
-      saveSessionToStorage(data.roomCode, data.hostToken, playerName)
-      
+      // Don't save to localStorage yet - wait until room_joined event confirms we're in
+      console.log('Calling joinRoom with:', data.roomCode, data.hostToken, playerName)
       get().joinRoom(data.roomCode, data.hostToken, playerName)
     } catch (error) {
-      get().showNotification('Failed to create game', 'error')
+      console.error('Create game error:', error)
+      get().showNotification(error.message || 'Failed to create game', 'error')
     }
   },
   
   joinGame: async (roomCode, playerName) => {
     try {
+      // Clear any old session data first to prevent auto-rejoin conflicts
+      clearSessionFromStorage()
+      
       const response = await fetch(`${API_URL}/api/game/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -649,9 +693,7 @@ export const useGameStore = create((set, get) => ({
         playerName
       })
       
-      // Save to localStorage for reconnection
-      saveSessionToStorage(data.roomCode, data.playerToken, playerName)
-      
+      // Don't save to localStorage yet - wait until room_joined event confirms we're in
       get().joinRoom(data.roomCode, data.playerToken, playerName)
     } catch (error) {
       get().showNotification(error.message, 'error')
@@ -659,12 +701,16 @@ export const useGameStore = create((set, get) => ({
   },
   
   joinRoom: (roomCode, playerToken, playerName) => {
+    console.log('joinRoom called:', { roomCode, playerToken, playerName })
     const { socket, connected } = get()
     if (socket && connected) {
+      console.log('Emitting join_room (socket connected)')
       socket.emit('join_room', { roomCode, playerToken, playerName })
     } else if (socket) {
+      console.log('Socket not connected, waiting...')
       // Socket exists but not connected yet - wait for connection
       socket.once('connect', () => {
+        console.log('Emitting join_room (after connect)')
         socket.emit('join_room', { roomCode, playerToken, playerName })
       })
     }

@@ -1,12 +1,13 @@
-# For backend service - ignore frontend
-frontend/
+# Ignore build artifacts
+backend_cpp/build/
+**/node_modules/
+**/dist/
 
-# For frontend service - ignore backend  
-backend/
-
-# General ignores
-node_modules/
-.git/
+# Ignore local dev files
+.env.local
+.env.development.local
 *.log
-.DS_Store
 
+# Ignore git
+.git/
+.gitignore

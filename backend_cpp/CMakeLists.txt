@@ -9,15 +9,23 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
-# Add external dependencies
+# Add Drogon framework
 include(FetchContent)
 
-# Crow - Fast C++ HTTP/WebSocket framework
 FetchContent_Declare(
-    crow
-    GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
-    GIT_TAG v1.0+5
+    drogon
+    GIT_REPOSITORY https://github.com/drogonframework/drogon.git
+    GIT_TAG v1.9.8
 )
+
+# Configure Drogon
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_CTL OFF CACHE BOOL "" FORCE)
+set(BUILD_ORM OFF CACHE BOOL "" FORCE)
+set(BUILD_REDIS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(drogon)
 
 # nlohmann_json - JSON library
 FetchContent_Declare(
@@ -25,8 +33,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG v3.11.3
 )
-
-FetchContent_MakeAvailable(crow json)
+FetchContent_MakeAvailable(json)
 
 # Define source files
 set(SOURCES
@@ -54,7 +61,7 @@ target_include_directories(guts_server PRIVATE
 
 # Link libraries
 target_link_libraries(guts_server PRIVATE
-    Crow::Crow
+    drogon
     nlohmann_json::nlohmann_json
     OpenSSL::SSL
     OpenSSL::Crypto
@@ -66,7 +73,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(guts_server PRIVATE
         -Wall
         -Wextra
-        -Wpedantic
         -O3
         -march=native
     )
@@ -81,4 +87,3 @@ endif()
 install(TARGETS guts_server
     RUNTIME DESTINATION bin
 )
-

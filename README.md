@@ -112,6 +112,20 @@ cd frontend && npm install && npm run dev
 
 **Access:** http://localhost:5173
 
+## Deployment
+
+This project is configured for deployment on Railway. See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) for detailed instructions.
+
+**Quick Railway Deployment:**
+1. Create two services in Railway: `backend_cpp` and `frontend`
+2. Set root directories for each service
+3. Configure environment variables:
+   - Backend: `PORT`, `FRONTEND_URL`
+   - Frontend: `VITE_API_URL`
+4. Deploy and connect the services
+
+Both services use Nixpacks for automated builds and are production-ready.
+
 ## License
 
 Open source - available for educational purposes.

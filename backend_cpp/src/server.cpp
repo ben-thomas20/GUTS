@@ -1,20 +1,24 @@
 #include "GameManager.hpp"
-#include <crow.h>
+#include <drogon/drogon.h>
+#include <drogon/WebSocketController.h>
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <thread>
-#include <chrono>
+#include <memory>
 
+using namespace drogon;
 using json = nlohmann::json;
+
+// Global managers (initialized in main)
+static std::shared_ptr<guts::GameManager> gameManager;
 
 // WebSocket connection manager
 class WSConnectionManager {
 public:
-    void addConnection(const std::string& socketId, crow::websocket::connection& conn) {
+    void addConnection(const std::string& socketId, const WebSocketConnectionPtr& conn) {
         std::lock_guard<std::mutex> lock(mutex_);
-        connections_[socketId] = &conn;
+        connections_[socketId] = conn;
     }
     
     void removeConnection(const std::string& socketId) {
@@ -26,14 +30,11 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         auto it = connections_.find(socketId);
         if (it != connections_.end() && it->second) {
-            json message = {
-                {"event", event},
-                {"data", data}
-            };
+            json message = {{"event", event}, {"data", data}};
             try {
-                it->second->send_text(message.dump());
+                it->second->send(message.dump());
             } catch (const std::exception& e) {
-                std::cerr << "Error sending message to " << socketId << ": " << e.what() << std::endl;
+                std::cerr << "Error sending to " << socketId << ": " << e.what() << std::endl;
             }
         }
     }
@@ -43,19 +44,16 @@ public:
         auto roomIt = roomConnections_.find(roomCode);
         if (roomIt == roomConnections_.end()) return;
         
-        json message = {
-            {"event", event},
-            {"data", data}
-        };
+        json message = {{"event", event}, {"data", data}};
         std::string messageStr = message.dump();
         
         for (const auto& socketId : roomIt->second) {
             auto connIt = connections_.find(socketId);
             if (connIt != connections_.end() && connIt->second) {
                 try {
-                    connIt->second->send_text(messageStr);
+                    connIt->second->send(messageStr);
                 } catch (const std::exception& e) {
-                    std::cerr << "Error broadcasting to " << socketId << ": " << e.what() << std::endl;
+                    std::cerr << "Error broadcasting: " << e.what() << std::endl;
                 }
             }
         }
@@ -78,290 +76,232 @@ public:
 
 private:
     std::mutex mutex_;
-    std::map<std::string, crow::websocket::connection*> connections_;
-    std::map<std::string, std::set<std::string>> roomConnections_; // roomCode -> socketIds
-    std::map<std::string, std::string> socketRooms_; // socketId -> roomCode
+    std::map<std::string, WebSocketConnectionPtr> connections_;
+    std::map<std::string, std::set<std::string>> roomConnections_;
+    std::map<std::string, std::string> socketRooms_;
 };
 
-std::string generateSocketId() {
+static std::shared_ptr<WSConnectionManager> wsManager;
+
+// Generate UUID
+std::string generateUUID() {
     static std::random_device rd;
     static std::mt19937_64 gen(rd());
     static std::uniform_int_distribution<uint64_t> dis;
     
-    uint64_t id = dis(gen);
-    char buffer[17];
-    snprintf(buffer, sizeof(buffer), "%016lx", id);
+    uint64_t part1 = dis(gen);
+    uint64_t part2 = dis(gen);
+    
+    char buffer[37];
+    snprintf(buffer, sizeof(buffer), "%08llx-%04llx-%04llx-%04llx-%012llx",
+        (unsigned long long)((part1 >> 32) & 0xFFFFFFFF),
+        (unsigned long long)((part1 >> 16) & 0xFFFF),
+        (unsigned long long)(part1 & 0xFFFF),
+        (unsigned long long)((part2 >> 48) & 0xFFFF),
+        (unsigned long long)(part2 & 0xFFFFFFFFFFFF));
+    
     return std::string(buffer);
 }
 
-int main() {
-    crow::SimpleApp app;
-    
-    // Get frontend URL for CORS (manual CORS headers are set on each route)
-    std::string frontendUrl = std::getenv("FRONTEND_URL") ? 
-        std::getenv("FRONTEND_URL") : "http://localhost:5173";
-    
-    WSConnectionManager wsManager;
-    
-    // Callbacks for game manager
-    auto sendMessageCallback = [&wsManager](const std::string& socketId, 
-                                           const std::string& event, 
-                                           const json& data) {
-        wsManager.sendMessage(socketId, event, data);
-    };
-    
-    auto broadcastCallback = [&wsManager](const std::string& roomCode,
-                                         const std::string& event,
-                                         const json& data) {
-        wsManager.broadcastToRoom(roomCode, event, data);
-    };
-    
-    guts::GameManager gameManager(sendMessageCallback, broadcastCallback);
-    
-    // Health check endpoint
-    CROW_ROUTE(app, "/api/health")
-    ([](const crow::request& req) {
-        json response = {
-            {"status", "ok"},
-            {"timestamp", std::chrono::system_clock::now().time_since_epoch().count()}
-        };
+// WebSocket Controller
+class WSController : public drogon::WebSocketController<WSController> {
+public:
+    void handleNewMessage(const WebSocketConnectionPtr& wsConnPtr,
+                         std::string&& message,
+                         const WebSocketMessageType& type) override {
+        if (type != WebSocketMessageType::Text) return;
         
-        crow::response res;
-        res.code = 200;
-        res.set_header("Content-Type", "application/json");
-        res.set_header("Access-Control-Allow-Origin", "*");
-        res.write(response.dump());
-        return res;
-    });
-    
-    // Create game endpoint
-    CROW_ROUTE(app, "/api/game/create")
-    .methods(crow::HTTPMethod::POST)
-    ([&gameManager](const crow::request& req) {
         try {
-            std::string roomCode = gameManager.generateRoomCode();
-            std::string hostToken = generateSocketId(); // Reuse this function for UUID generation
+            auto jsonMsg = json::parse(message);
+            if (!jsonMsg.contains("event")) return;
             
-            gameManager.createGame(roomCode, hostToken);
+            std::string event = jsonMsg["event"];
+            json eventData = jsonMsg.contains("data") ? jsonMsg["data"] : json::object();
             
-            json response = {
-                {"roomCode", roomCode},
-                {"hostToken", hostToken}
-            };
-            
-            crow::response res;
-            res.code = 200;
-            res.set_header("Content-Type", "application/json");
-            res.set_header("Access-Control-Allow-Origin", "*");
-            res.write(response.dump());
-            return res;
-        } catch (const std::exception& e) {
-            crow::response res;
-            res.code = 500;
-            res.set_header("Content-Type", "application/json");
-            res.set_header("Access-Control-Allow-Origin", "*");
-            json error = {{"error", e.what()}};
-            res.write(error.dump());
-            return res;
-        }
-    });
-    
-    // Join game endpoint
-    CROW_ROUTE(app, "/api/game/join")
-    .methods(crow::HTTPMethod::POST)
-    ([&gameManager](const crow::request& req) {
-        try {
-            auto body = json::parse(req.body);
-            
-            if (!body.contains("roomCode") || !body.contains("playerName")) {
-                crow::response res;
-                res.code = 400;
-                res.set_header("Content-Type", "application/json");
-                res.set_header("Access-Control-Allow-Origin", "*");
-                json error = {{"error", "Room code and player name required"}};
-                res.write(error.dump());
-                return res;
-            }
-            
-            std::string roomCode = body["roomCode"];
-            std::string playerName = body["playerName"];
-            
-            auto* game = gameManager.getGame(roomCode);
-            if (!game) {
-                crow::response res;
-                res.code = 404;
-                res.set_header("Content-Type", "application/json");
-                res.set_header("Access-Control-Allow-Origin", "*");
-                json error = {{"error", "Game not found"}};
-                res.write(error.dump());
-                return res;
-            }
-            
-            if (game->state != guts::GameState::LOBBY) {
-                crow::response res;
-                res.code = 400;
-                res.set_header("Content-Type", "application/json");
-                res.set_header("Access-Control-Allow-Origin", "*");
-                json error = {{"error", "Game already started"}};
-                res.write(error.dump());
-                return res;
-            }
-            
-            if (game->players.size() >= 8) {
-                crow::response res;
-                res.code = 400;
-                res.set_header("Content-Type", "application/json");
-                res.set_header("Access-Control-Allow-Origin", "*");
-                json error = {{"error", "Game is full"}};
-                res.write(error.dump());
-                return res;
-            }
-            
-            std::string playerToken = generateSocketId();
-            json response = {
-                {"playerToken", playerToken},
-                {"roomCode", roomCode}
-            };
-            
-            crow::response res;
-            res.code = 200;
-            res.set_header("Content-Type", "application/json");
-            res.set_header("Access-Control-Allow-Origin", "*");
-            res.write(response.dump());
-            return res;
-        } catch (const std::exception& e) {
-            crow::response res;
-            res.code = 500;
-            res.set_header("Content-Type", "application/json");
-            res.set_header("Access-Control-Allow-Origin", "*");
-            json error = {{"error", e.what()}};
-            res.write(error.dump());
-            return res;
-        }
-    });
-    
-    // Get game status endpoint
-    CROW_ROUTE(app, "/api/game/<string>/status")
-    ([&gameManager](const std::string& roomCode) {
-        auto* game = gameManager.getGame(roomCode);
-        
-        if (!game) {
-            crow::response res;
-            res.code = 404;
-            res.set_header("Content-Type", "application/json");
-            res.set_header("Access-Control-Allow-Origin", "*");
-            json error = {{"error", "Game not found"}};
-            res.write(error.dump());
-            return res;
-        }
-        
-        std::string stateStr = game->state == guts::GameState::LOBBY ? "lobby" :
-                              (game->state == guts::GameState::PLAYING ? "playing" : "ended");
-        
-        json response = {
-            {"state", stateStr},
-            {"playerCount", game->players.size()},
-            {"round", game->round}
-        };
-        
-        crow::response res;
-        res.code = 200;
-        res.set_header("Content-Type", "application/json");
-        res.set_header("Access-Control-Allow-Origin", "*");
-        res.write(response.dump());
-        return res;
-    });
-    
-    // WebSocket endpoint
-    CROW_ROUTE(app, "/ws")
-    .websocket()
-    .onopen([&wsManager](crow::websocket::connection& conn) {
-        std::string socketId = generateSocketId();
-        wsManager.addConnection(socketId, conn);
-        
-        // Store socketId in connection context
-        conn.userdata(new std::string(socketId));
-        
-        std::cout << "WebSocket connected: " << socketId << std::endl;
-    })
-    .onclose([&wsManager, &gameManager](crow::websocket::connection& conn, const std::string& reason) {
-        if (conn.userdata()) {
-            std::string* socketIdPtr = static_cast<std::string*>(conn.userdata());
+            auto socketIdPtr = wsConnPtr->getContext<std::string>();
+            if (!socketIdPtr) return;
             std::string socketId = *socketIdPtr;
             
-            std::cout << "WebSocket disconnected: " << socketId << std::endl;
-            
-            gameManager.handleDisconnect(socketId);
-            wsManager.leaveRoom(socketId);
-            wsManager.removeConnection(socketId);
-            
-            delete socketIdPtr;
-        }
-    })
-    .onmessage([&wsManager, &gameManager](crow::websocket::connection& conn,
-                                         const std::string& data,
-                                         bool is_binary) {
-        if (!conn.userdata()) return;
-        
-        std::string* socketIdPtr = static_cast<std::string*>(conn.userdata());
-        std::string socketId = *socketIdPtr;
-        
-        try {
-            auto message = json::parse(data);
-            
-            if (!message.contains("event")) return;
-            
-            std::string event = message["event"];
-            json eventData = message.contains("data") ? message["data"] : json::object();
-            
-            // Handle different events
             if (event == "join_room") {
                 if (eventData.contains("roomCode")) {
-                    wsManager.joinRoom(socketId, eventData["roomCode"]);
+                    wsManager->joinRoom(socketId, eventData["roomCode"]);
                 }
-                gameManager.handleJoinRoom(socketId, eventData);
+                gameManager->handleJoinRoom(socketId, eventData);
             } else if (event == "start_game") {
-                gameManager.handleStartGame(socketId, eventData);
+                gameManager->handleStartGame(socketId, eventData);
             } else if (event == "set_buy_in") {
-                gameManager.handleSetBuyIn(socketId, eventData);
+                gameManager->handleSetBuyIn(socketId, eventData);
             } else if (event == "player_decision") {
-                gameManager.handlePlayerDecision(socketId, eventData);
+                gameManager->handlePlayerDecision(socketId, eventData);
             } else if (event == "next_round") {
-                gameManager.handleNextRound(socketId, eventData);
+                gameManager->handleNextRound(socketId, eventData);
             } else if (event == "leave_game") {
-                gameManager.handleLeaveGame(socketId);
+                gameManager->handleLeaveGame(socketId);
             } else if (event == "buy_back_in") {
-                gameManager.handleBuyBackIn(socketId, eventData);
+                gameManager->handleBuyBackIn(socketId, eventData);
             } else if (event == "end_game") {
-                gameManager.handleEndGame(socketId);
+                gameManager->handleEndGame(socketId);
             }
         } catch (const std::exception& e) {
-            std::cerr << "Error handling message from " << socketId << ": " << e.what() << std::endl;
-            wsManager.sendMessage(socketId, "error", {{"message", "Internal server error"}});
+            std::cerr << "Error handling message: " << e.what() << std::endl;
         }
-    });
+    }
     
-    // Start cleanup thread
-    std::thread cleanupThread([&gameManager]() {
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::minutes(5));
-            gameManager.cleanupAbandonedGames();
+    void handleNewConnection(const HttpRequestPtr&,
+                           const WebSocketConnectionPtr& wsConnPtr) override {
+        std::string socketId = generateUUID();
+        wsConnPtr->setContext(std::make_shared<std::string>(socketId));
+        wsManager->addConnection(socketId, wsConnPtr);
+        std::cout << "WebSocket connected: " << socketId << std::endl;
+    }
+    
+    void handleConnectionClosed(const WebSocketConnectionPtr& wsConnPtr) override {
+        auto socketIdPtr = wsConnPtr->getContext<std::string>();
+        if (socketIdPtr) {
+            std::string socketId = *socketIdPtr;
+            std::cout << "WebSocket disconnected: " << socketId << std::endl;
+            
+            gameManager->handleDisconnect(socketId);
+            wsManager->leaveRoom(socketId);
+            wsManager->removeConnection(socketId);
         }
-    });
-    cleanupThread.detach();
+    }
     
-    // Get port from environment or use default
+    WS_PATH_LIST_BEGIN
+    WS_PATH_ADD("/ws");
+    WS_PATH_LIST_END
+};
+
+int main() {
+    // Initialize managers
+    wsManager = std::make_shared<WSConnectionManager>();
+    
+    auto sendMessageCallback = [](const std::string& socketId, 
+                                  const std::string& event, 
+                                  const json& data) {
+        wsManager->sendMessage(socketId, event, data);
+    };
+    
+    auto broadcastCallback = [](const std::string& roomCode,
+                                const std::string& event,
+                                const json& data) {
+        wsManager->broadcastToRoom(roomCode, event, data);
+    };
+    
+    gameManager = std::make_shared<guts::GameManager>(sendMessageCallback, broadcastCallback);
+    
     int port = std::getenv("PORT") ? std::atoi(std::getenv("PORT")) : 3001;
+    std::string frontendUrl = std::getenv("FRONTEND_URL") ? 
+        std::getenv("FRONTEND_URL") : "http://localhost:5173";
     
     std::cout << "Starting C++ GUTS server on 0.0.0.0:" << port << std::endl;
     std::cout << "Frontend URL: " << frontendUrl << std::endl;
     
-    // Bind to 0.0.0.0 for Railway (not localhost)
-    app.bindaddr("0.0.0.0")
-       .port(port)
-       .multithreaded()
-       .run();
+    // Configure and start Drogon
+    app()
+        .setLogPath("./")
+        .setLogLevel(trantor::Logger::kWarn)
+        .addListener("0.0.0.0", port)
+        .setThreadNum(8)
+        .registerPostHandlingAdvice([](const HttpRequestPtr&, const HttpResponsePtr& resp) {
+            resp->addHeader("Access-Control-Allow-Origin", "*");
+            resp->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            resp->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        });
     
+    // Register simple handlers inline
+    app().registerHandler("/api/health",
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
+            Json::Value response;
+            response["status"] = "ok";
+            response["timestamp"] = (Json::Int64)std::chrono::system_clock::now().time_since_epoch().count();
+            callback(HttpResponse::newHttpJsonResponse(response));
+        }, {Get, Options});
+    
+    app().registerHandler("/api/game/create",
+        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
+            // Handle OPTIONS preflight
+            if (req->method() == Options) {
+                auto resp = HttpResponse::newHttpResponse();
+                resp->setStatusCode(k200OK);
+                callback(resp);
+                return;
+            }
+            
+            std::string roomCode = gameManager->generateRoomCode();
+            std::string hostToken = generateUUID();
+            gameManager->createGame(roomCode, hostToken);
+            
+            Json::Value response;
+            response["roomCode"] = roomCode;
+            response["hostToken"] = hostToken;
+            callback(HttpResponse::newHttpJsonResponse(response));
+        }, {Post, Options});
+    
+    app().registerHandler("/api/game/join",
+        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
+            // Handle OPTIONS preflight
+            if (req->method() == Options) {
+                auto resp = HttpResponse::newHttpResponse();
+                resp->setStatusCode(k200OK);
+                callback(resp);
+                return;
+            }
+            
+            auto json = req->getJsonObject();
+            if (!json || !(*json).isMember("roomCode") || !(*json).isMember("playerName")) {
+                Json::Value error;
+                error["error"] = "Room code and player name required";
+                auto resp = HttpResponse::newHttpJsonResponse(error);
+                resp->setStatusCode(k400BadRequest);
+                callback(resp);
+                return;
+            }
+            
+            std::string roomCode = (*json)["roomCode"].asString();
+            auto* game = gameManager->getGame(roomCode);
+            
+            if (!game) {
+                Json::Value error;
+                error["error"] = "Game not found";
+                auto resp = HttpResponse::newHttpJsonResponse(error);
+                resp->setStatusCode(k404NotFound);
+                callback(resp);
+                return;
+            }
+            
+            if (game->state != guts::GameState::LOBBY) {
+                Json::Value error;
+                error["error"] = "Game already started";
+                auto resp = HttpResponse::newHttpJsonResponse(error);
+                resp->setStatusCode(k400BadRequest);
+                callback(resp);
+                return;
+            }
+            
+            if (game->players.size() >= 8) {
+                Json::Value error;
+                error["error"] = "Game is full";
+                auto resp = HttpResponse::newHttpJsonResponse(error);
+                resp->setStatusCode(k400BadRequest);
+                callback(resp);
+                return;
+            }
+            
+            Json::Value response;
+            response["playerToken"] = generateUUID();
+            response["roomCode"] = roomCode;
+            callback(HttpResponse::newHttpJsonResponse(response));
+        }, {Post, Options});
+    
+    // Cleanup thread
+    std::thread([&]() {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::minutes(5));
+            gameManager->cleanupAbandonedGames();
+        }
+    }).detach();
+    
+    app().run();
     return 0;
 }
-
