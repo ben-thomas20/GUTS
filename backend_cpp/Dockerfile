@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     git \
     libssl-dev \
     libjsoncpp-dev \
+    uuid-dev \
+    zlib1g-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
