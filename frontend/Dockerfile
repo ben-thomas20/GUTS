@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies with cache mount
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=npm_cache,target=/root/.npm \
     npm ci
 
 # Copy source files
