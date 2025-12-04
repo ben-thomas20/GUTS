@@ -157,14 +157,16 @@ VITE_API_URL=https://your-backend-url.railway.app
 
 ### Issue: Frontend can't connect to backend
 
-**Symptoms:** WebSocket connection fails, CORS errors
+**Symptoms:** WebSocket connection fails, CORS errors, connects to localhost:3001
 
 **Solutions:**
-1. Verify `VITE_API_URL` is set correctly (with https://)
-2. Check backend CORS configuration
-3. Ensure backend `FRONTEND_URL` matches frontend URL
-4. Check browser console for specific error messages
-5. Verify backend service is actually running
+1. **Verify `VITE_API_URL` was set BEFORE the first deployment** - Railway uses it at build time
+2. If you set it after deployment, trigger a **manual redeploy** to rebuild with the correct URL
+3. Check built files: The API URL is baked into the JS bundle during build
+4. Check backend CORS configuration
+5. Ensure backend `FRONTEND_URL` matches frontend URL
+6. Check browser console for specific error messages (look for localhost:3001 = wrong URL)
+7. Verify backend service is actually running
 
 ### Issue: WebSocket connection fails
 

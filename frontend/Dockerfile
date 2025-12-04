@@ -14,11 +14,11 @@ RUN npm ci
 # Copy source files
 COPY . .
 
-# Build argument for API URL
+# Build argument for API URL - Railway automatically passes env vars as build args
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
 
-# Build the application
+# Build the application (VITE_API_URL must be set at build time, not runtime)
 RUN npm run build
 
 # Runtime stage - serve static files

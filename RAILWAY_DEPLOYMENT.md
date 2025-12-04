@@ -52,11 +52,13 @@ The project consists of two separate services:
    - **Root Directory**: `/frontend`
    - **Builder**: Docker (auto-detected via `Dockerfile`)
 
-4. Set Environment Variables:
+4. Set Environment Variables (**before first deployment**):
    ```
    VITE_API_URL=<YOUR_BACKEND_URL>  # Use the URL from Step 2
    ```
    Example: `VITE_API_URL=https://guts-backend.railway.app`
+   
+   **⚠️ Important:** This environment variable is used as a Docker build argument. Railway automatically passes environment variables to the Docker build process. Because Vite is a static site generator, the API URL must be known at **build time** (not runtime) - it gets compiled into the JavaScript bundle.
 
 5. Deploy and wait for build to complete
 6. Copy the generated public URL (e.g., `https://guts-frontend.railway.app`)

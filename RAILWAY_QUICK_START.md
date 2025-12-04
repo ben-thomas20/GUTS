@@ -32,11 +32,14 @@
 3. **Settings** → **Service**:
    - Root Directory: `/frontend`
    - Builder: Docker (auto-detected)
-4. **Variables** tab:
+4. **Variables** tab (⚠️ **IMPORTANT** - set BEFORE first deployment):
    ```
    VITE_API_URL=<PASTE_BACKEND_URL_HERE>
    ```
    Example: `VITE_API_URL=https://guts-backend-production.up.railway.app`
+   
+   **Note:** Railway automatically passes this as a Docker build argument. The frontend must know the backend URL at **build time** because Vite bakes it into the JavaScript files.
+
 5. Click **Deploy** (takes ~1 minute to build)
 6. **Copy the public URL** from Settings → Networking
 
