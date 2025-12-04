@@ -22,8 +22,7 @@ COPY include/ ./include/
 COPY src/ ./src/
 
 # Build the application with optimizations
-RUN --mount=type=cache,id=cmake_cache,target=/app/build/CMakeFiles \
-    mkdir -p build && \
+RUN mkdir -p build && \
     cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc)
