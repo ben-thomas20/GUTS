@@ -114,17 +114,14 @@ cd frontend && npm install && npm run dev
 
 ## Deployment
 
-This project is configured for deployment on Railway. See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) for detailed instructions.
+Deploy to Railway in 5 minutes. See [RAILWAY.md](./RAILWAY.md) for complete instructions.
 
-**Quick Railway Deployment:**
-1. Create two services in Railway: `backend_cpp` and `frontend`
-2. Set root directories for each service
-3. Configure environment variables:
-   - Backend: `PORT`, `FRONTEND_URL`
-   - Frontend: `VITE_API_URL`
-4. Deploy and connect the services
+**Quick steps:**
+1. Backend service → set `FRONTEND_URL`
+2. Frontend service → **set `VITE_API_URL` before deploying**
+3. Update backend CORS with frontend URL
 
-Both services use Docker with BuildKit for optimized, production-ready builds.
+Uses Docker multi-stage builds for optimized images.
 
 ## License
 
