@@ -13,6 +13,7 @@ export default function DeckShowdown() {
   const [phase, setPhase] = useState('initial')
   const [dealerCardsVisible, setDealerCardsVisible] = useState(false)
   const [resultVisible, setResultVisible] = useState(false)
+  const [buttonVisible, setButtonVisible] = useState(false)
 
   useEffect(() => {
     if (!showdownData) return
@@ -21,6 +22,7 @@ export default function DeckShowdown() {
     setPhase('initial')
     setDealerCardsVisible(false)
     setResultVisible(false)
+    setButtonVisible(false)
     
     // Small delay to ensure DOM is ready, then start transition (slower)
     const transitionTimer = setTimeout(() => {
@@ -47,7 +49,15 @@ export default function DeckShowdown() {
         setResultVisible(true)
       }, 6000) // Slower: 6 seconds (allows time for 3 cards to deal with slower animation)
       
-      return () => clearTimeout(resultTimer)
+      // Show button after result animation completes
+      const buttonTimer = setTimeout(() => {
+        setButtonVisible(true)
+      }, 7000) // 1 second after result shows
+      
+      return () => {
+        clearTimeout(resultTimer)
+        clearTimeout(buttonTimer)
+      }
     }
   }, [showdownResult])
 
@@ -150,29 +160,16 @@ export default function DeckShowdown() {
       </div>
 
       {/* Continue Button (Host Only) - At bottom */}
-      {showdownResult && (
+      {buttonVisible && showdownResult && (
         <div className="w-full max-w-2xl mx-auto mt-4 sm:mt-6 flex-shrink-0 pb-2 space-y-3">
           {isHost ? (
-            <>
-              <button
-                onClick={nextRound}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg sm:text-xl rounded-xl shadow-lg active:scale-95 transition-all"
-                style={{ minHeight: '44px' }}
-              >
-                {showdownResult.gameEnded ? 'View Final Results' : 'Continue to Next Round'}
-              </button>
-              {/* Exit Game Button - Below Continue Button */}
-              <div className="flex justify-center">
-                <button
-                  onClick={handleEndGame}
-                  className="bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-lg active:scale-95 transition-all"
-                  style={{ minHeight: '36px' }}
-                  title="End Game"
-                >
-                  Exit Game
-                </button>
-              </div>
-            </>
+            <button
+              onClick={nextRound}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg sm:text-xl rounded-xl shadow-lg active:scale-95 transition-all"
+              style={{ minHeight: '44px' }}
+            >
+              {showdownResult.gameEnded ? 'View Final Results' : 'Continue to Next Round'}
+            </button>
           ) : (
             <div className="text-center py-3 bg-white/10 rounded-xl border border-white/20">
               <p className="text-white/70 font-semibold text-sm sm:text-base">Waiting for host to continue...</p>

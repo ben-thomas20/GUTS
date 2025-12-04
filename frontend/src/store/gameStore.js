@@ -404,7 +404,12 @@ export const useGameStore = create((set, get) => ({
         set({
           myCards: data.cards,
           round: data.round,
-          isNothingRound: data.isNothingRound
+          isNothingRound: data.isNothingRound,
+          // Clear old timer state when new cards dealt
+          timerActive: false,
+          timerRemaining: 0,
+          myDecision: null,
+          decidedPlayers: []
         })
       }
     })
@@ -418,7 +423,11 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('timer_tick', (data) => {
-      set({ timerRemaining: data.remaining })
+      // Only update timer if it's currently active (prevents old ticks from updating)
+      const currentState = get()
+      if (currentState.timerActive) {
+        set({ timerRemaining: data.remaining })
+      }
     })
     
     socket.on('player_decided', (data) => {
@@ -430,7 +439,8 @@ export const useGameStore = create((set, get) => ({
     socket.on('round_reveal', (data) => {
       set({
         revealData: data,
-        timerActive: false
+        timerActive: false,
+        timerRemaining: 0
       })
     })
     
@@ -585,7 +595,9 @@ export const useGameStore = create((set, get) => ({
     socket.on('game_ended', (data) => {
       set({
         gameState: 'ended',
-        finalStandings: data.finalStandings
+        finalStandings: data.finalStandings,
+        timerActive: false,
+        timerRemaining: 0
       })
     })
     

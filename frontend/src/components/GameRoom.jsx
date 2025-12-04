@@ -208,8 +208,8 @@ export default function GameRoom() {
         </div>
       )}
       
-      {/* Exit Game Button (Host Only) - Bottom Center */}
-      {isHost && !showDecisionButtons && (
+      {/* Exit Game Button (Host Only) - Bottom Center - Only show during active gameplay, not during reveal/showdown */}
+      {isHost && !showDecisionButtons && !showReveal && !showDeckShowdown && timerActive && (
         <div className="flex-shrink-0 flex justify-center pb-4 pt-2">
           <button
             onClick={handleEndGame}

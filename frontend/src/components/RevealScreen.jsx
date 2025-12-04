@@ -105,20 +105,6 @@ export default function RevealScreen() {
             <p className="text-white/70 font-semibold">Waiting for host to continue...</p>
           </div>
         )}
-        
-        {/* Exit Game Button (Host Only) - Below Continue Button */}
-        {isHost && (
-          <div className="flex justify-center">
-            <button
-              onClick={handleEndGame}
-              className="bg-red-600/80 hover:bg-red-700/90 border border-red-500/50 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-lg active:scale-95 transition-all"
-              style={{ minHeight: '36px' }}
-              title="End Game"
-            >
-              Exit Game
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
