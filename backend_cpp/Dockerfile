@@ -24,11 +24,11 @@ COPY include/ ./include/
 # Copy source files
 COPY src/ ./src/
 
-# Build the application with optimizations
+# Build the application with limited parallelism to avoid OOM
 RUN mkdir -p build && \
     cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    make -j$(nproc)
+    make -j2
 
 # Runtime stage - smaller image
 FROM ubuntu:22.04
