@@ -405,11 +405,14 @@ export const useGameStore = create((set, get) => ({
           myCards: data.cards,
           round: data.round,
           isNothingRound: data.isNothingRound,
-          // Clear old timer state when new cards dealt
-          timerActive: false,
-          timerRemaining: 0,
+          // Clear decision state but keep timer - it will be started by timer_started event
           myDecision: null,
-          decidedPlayers: []
+          decidedPlayers: [],
+          // Clear previous round data
+          revealData: null,
+          showdownData: null,
+          showdownResult: null,
+          multipleHoldersResult: null
         })
       }
     })
@@ -456,6 +459,13 @@ export const useGameStore = create((set, get) => ({
         return {
           pot: data.pot,
           players: updatedPlayers,
+          // Clear round data to prevent flashing
+          revealData: null,
+          showdownData: null,
+          showdownResult: null,
+          multipleHoldersResult: null,
+          timerActive: false,
+          timerRemaining: 0,
           ...debtStatus
         }
       })

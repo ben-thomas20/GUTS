@@ -36,6 +36,7 @@ FROM ubuntu:22.04
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y \
     libssl3 \
+    libjsoncpp25 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
