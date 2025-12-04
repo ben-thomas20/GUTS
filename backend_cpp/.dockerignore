@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.a
+*.o
+
+# Git
+../.git/
+.git/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Documentation
+*.md
+
+# Deployment config
+nixpacks.toml
+Dockerfile
+

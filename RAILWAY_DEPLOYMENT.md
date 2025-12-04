@@ -32,7 +32,7 @@ The project consists of two separate services:
 3. Configure the backend service:
    - **Name**: `guts-backend`
    - **Root Directory**: `/backend_cpp`
-   - **Builder**: Nixpacks (auto-detected via `nixpacks.toml`)
+   - **Builder**: Docker (auto-detected via `Dockerfile`)
    
 4. Set Environment Variables:
    ```
@@ -50,7 +50,7 @@ The project consists of two separate services:
 3. Configure the frontend service:
    - **Name**: `guts-frontend`
    - **Root Directory**: `/frontend`
-   - **Builder**: Nixpacks (auto-detected via `nixpacks.toml`)
+   - **Builder**: Docker (auto-detected via `Dockerfile`)
 
 4. Set Environment Variables:
    ```
@@ -141,11 +141,16 @@ resp->addHeader("Access-Control-Allow-Origin", frontendUrl);
 
 ### 3. Build Configuration
 
-Both services use Nixpacks for building:
-- **Backend**: `backend_cpp/nixpacks.toml`
-- **Frontend**: `frontend/nixpacks.toml`
+Both services use Docker with BuildKit for building:
+- **Backend**: `backend_cpp/Dockerfile` - Multi-stage build for smaller runtime image
+- **Frontend**: `frontend/Dockerfile` - Optimized build with caching
 
-These files are pre-configured and should work out of the box.
+BuildKit features used:
+- Layer caching for faster rebuilds
+- Multi-stage builds for smaller images
+- Dependency caching with `--mount=type=cache`
+
+These Dockerfiles are pre-configured and production-ready.
 
 ### 4. Persistent Storage
 

@@ -16,6 +16,7 @@
 1. **Service Name**: `guts-backend`
 2. **Settings** → **Service**:
    - Root Directory: `/backend_cpp`
+   - Builder: Docker (auto-detected)
 3. **Variables** tab:
    ```
    PORT=${{PORT}}
@@ -30,6 +31,7 @@
 2. **Service Name**: `guts-frontend`
 3. **Settings** → **Service**:
    - Root Directory: `/frontend`
+   - Builder: Docker (auto-detected)
 4. **Variables** tab:
    ```
    VITE_API_URL=<PASTE_BACKEND_URL_HERE>

@@ -6,15 +6,17 @@ Use this checklist before deploying to Railway to ensure everything is configure
 
 ### Backend Configuration
 
-- [x] **nixpacks.toml exists** (`backend_cpp/nixpacks.toml`)
-  - Includes cmake, gcc, openssl, pkg-config
-  - Build commands configured
-  - Start command: `./build/guts_server`
-
 - [x] **Dockerfile exists** (`backend_cpp/Dockerfile`)
-  - Alternative deployment method available
+  - Multi-stage build for optimal image size
+  - BuildKit cache mounts for faster builds
   - Exposes port 3001
-  - Ubuntu 22.04 base image
+  - Ubuntu 22.04 base with minimal runtime dependencies
+  - Builder stage: Full build tools
+  - Runtime stage: Only necessary libraries (~50% smaller)
+
+- [x] **.dockerignore configured** (`backend_cpp/.dockerignore`)
+  - Excludes build artifacts
+  - Reduces build context size
 
 - [x] **Environment variable support**
   - `PORT`: Dynamic port assignment ✓
@@ -37,10 +39,16 @@ Use this checklist before deploying to Railway to ensure everything is configure
 
 ### Frontend Configuration
 
-- [x] **nixpacks.toml exists** (`frontend/nixpacks.toml`)
-  - Node.js 20 configured
+- [x] **Dockerfile exists** (`frontend/Dockerfile`)
+  - Multi-stage build for optimal image size
+  - Node 20 Alpine base (minimal size)
+  - BuildKit cache mounts for npm installs
   - Build command: `npm run build`
-  - Start command: `npx serve -s dist -l $PORT`
+  - Runtime: Serves static files with `serve`
+
+- [x] **.dockerignore configured** (`.dockerignore`)
+  - Excludes node_modules and build artifacts
+  - Reduces build context size
 
 - [x] **Environment variable support**
   - `VITE_API_URL`: Backend URL configuration ✓
@@ -80,7 +88,7 @@ Use this checklist before deploying to Railway to ensure everything is configure
 ```bash
 Service Name: guts-backend
 Root Directory: /backend_cpp
-Builder: Nixpacks (auto-detected)
+Builder: Docker (auto-detected via Dockerfile)
 ```
 
 **Environment Variables:**
@@ -96,7 +104,7 @@ FRONTEND_URL=https://your-frontend-url.railway.app
 ```bash
 Service Name: guts-frontend
 Root Directory: /frontend
-Builder: Nixpacks (auto-detected)
+Builder: Docker (auto-detected via Dockerfile)
 ```
 
 **Environment Variables:**

@@ -23,8 +23,8 @@ GUTS is a house-rules poker variant designed for 2-8 players. Each round, player
 
 **Deployment**
 - Railway (hosting platform)
-- Docker (containerization)
-- Nixpacks (build system)
+- Docker with BuildKit (containerization & build system)
+- Multi-stage builds for optimized images
 
 ## Project Structure
 
@@ -124,7 +124,7 @@ This project is configured for deployment on Railway. See [RAILWAY_DEPLOYMENT.md
    - Frontend: `VITE_API_URL`
 4. Deploy and connect the services
 
-Both services use Nixpacks for automated builds and are production-ready.
+Both services use Docker with BuildKit for optimized, production-ready builds.
 
 ## License
 
