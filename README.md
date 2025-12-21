@@ -26,35 +26,6 @@ GUTS is a house-rules poker variant designed for 2-8 players. Each round, player
 - Docker with BuildKit (containerization & build system)
 - Multi-stage builds for optimized images
 
-## Project Structure
-
-```
-GUTS/
-├── backend_cpp/              # C++ backend server
-│   ├── include/              # Header files
-│   │   ├── Card.hpp          # Card types and hand evaluation
-│   │   ├── Player.hpp        # Player data structures
-│   │   ├── Game.hpp          # Game state management
-│   │   ├── GameLogic.hpp     # Card game logic
-│   │   └── GameManager.hpp   # Game session management
-│   ├── src/                  # Implementation files
-│   │   ├── server.cpp        # HTTP/WebSocket server
-│   │   ├── GameLogic.cpp     # Game logic implementation
-│   │   └── GameManager.cpp   # Game manager implementation
-│   ├── CMakeLists.txt        # Build configuration
-│   ├── Dockerfile            # Container deployment
-│   └── nixpacks.toml         # Railway deployment config
-├── frontend/                 # React frontend
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── store/            # Zustand state management
-│   │   ├── App.jsx           # Main application
-│   │   └── main.jsx          # Entry point
-│   └── package.json
-├── start.sh                  # Development startup script
-├── GAME_RULES.md            # Detailed game rules
-└── README.md
-```
 
 ## Game Rules
 
@@ -92,41 +63,5 @@ GUTS/
 - Game continues until one player beats THE DECK in a solo showdown
 - Debt tracking prevents players from leaving without settling
 
-## Quick Start
 
-**Build and run:**
-```bash
-./start.sh
-```
 
-**Manual build:**
-```bash
-# Backend
-cd backend_cpp && mkdir build && cd build
-cmake .. && make
-./guts_server
-
-# Frontend (separate terminal)
-cd frontend && npm install && npm run dev
-```
-
-**Access:** http://localhost:5173
-
-## Deployment
-
-Deploy to Railway in 5 minutes. See [RAILWAY.md](./RAILWAY.md) for complete instructions.
-
-**Quick steps:**
-1. Backend service → set `FRONTEND_URL`
-2. Frontend service → **set `VITE_API_URL` before deploying**
-3. Update backend CORS with frontend URL
-
-Uses Docker multi-stage builds for optimized images.
-
-## License
-
-Open source - available for educational purposes.
-
----
-
-Built for CSE101 • High-performance multiplayer gaming
