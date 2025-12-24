@@ -5,6 +5,7 @@ import Timer from './Timer'
 import PlayerList from './PlayerList'
 import RevealScreen from './RevealScreen'
 import DeckShowdown from './DeckShowdown'
+import EmotePicker from './EmotePicker'
 
 export default function GameRoom() {
   const {
@@ -84,7 +85,7 @@ export default function GameRoom() {
   }
 
   return (
-    <div className="min-h-full flex flex-col pt-6 pb-6 safe-area-padding relative">
+    <div className="min-h-full flex flex-col pt-6 pb-6 safe-area-padding relative" style={{ overflow: 'visible' }}>
       
       {/* Header Info */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 mb-4">
@@ -107,7 +108,7 @@ export default function GameRoom() {
       </div>
 
       {/* Player List */}
-      <div className="flex-shrink-0 mb-4">
+      <div className="flex-shrink-0 mb-4" style={{ overflow: 'visible' }}>
         <PlayerList />
       </div>
 
@@ -221,6 +222,9 @@ export default function GameRoom() {
           </button>
         </div>
       )}
+      
+      {/* Emote Picker */}
+      <EmotePicker />
     </div>
   )
 }

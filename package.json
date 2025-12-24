@@ -2,13 +2,15 @@
   "name": "guts-card-game",
   "version": "1.0.0",
   "description": "Multiplayer Guts card game with real-time gameplay",
+  "type": "module",
   "private": true,
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\""
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
+    "compress-emotes": "node scripts/compress-emotes.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "sharp": "^0.34.5"
   }
 }
-

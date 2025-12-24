@@ -5,8 +5,14 @@ export default function GameEnd() {
 
   if (!finalStandings || finalStandings.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-white text-xl font-semibold">Game Ended</p>
+      <div className="h-full flex flex-col items-center justify-center safe-area-padding">
+        <p className="text-white text-xl font-semibold mb-6">Game Ended</p>
+        <button
+          onClick={leaveGame}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl shadow-lg active:scale-95 transition-all"
+        >
+          New Game
+        </button>
       </div>
     )
   }

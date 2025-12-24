@@ -141,6 +141,8 @@ public:
                 gameManager->handleBuyBackIn(socketId, eventData);
             } else if (event == "end_game") {
                 gameManager->handleEndGame(socketId);
+            } else if (event == "player_emote") {
+                gameManager->handlePlayerEmote(socketId, eventData);
             }
         } catch (const std::exception& e) {
             std::cerr << "Error handling message: " << e.what() << std::endl;

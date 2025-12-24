@@ -222,6 +222,10 @@ export const useGameStore = create((set, get) => ({
   // Notifications
   notification: null,
   
+  // Emote state
+  activeEmotes: {}, // Map of playerId -> { emoteUrl, timestamp }
+  showEmotePicker: false,
+  
   // Actions
   initSocket: () => {
     // Only create socket if one doesn't already exist
@@ -269,6 +273,22 @@ export const useGameStore = create((set, get) => ({
         // Silently ignore - this is expected when auto-rejoining fails on first load
         return
       }
+      
+      // If game not found and we're in a game state, reset to landing
+      if (data.message === 'Game not found' && currentState.gameState !== 'landing') {
+        clearSessionFromStorage()
+        set({
+          gameState: 'landing',
+          roomCode: null,
+          playerToken: null,
+          playerId: null,
+          playerName: null,
+          isHost: false
+        })
+        get().showNotification('Game session expired. Returning to home.', 'info')
+        return
+      }
+      
       get().showNotification(data.message, 'error')
     })
     
@@ -418,17 +438,26 @@ export const useGameStore = create((set, get) => ({
     })
     
     socket.on('timer_started', (data) => {
-      set({
-        timerRemaining: data.duration,
-        timerDuration: data.duration,
-        timerActive: true
-      })
+      const currentRound = get().round
+      const timerRound = data.round || currentRound
+      
+      // Only start timer if it's for the current round
+      if (timerRound === currentRound) {
+        set({
+          timerRemaining: data.duration,
+          timerDuration: data.duration,
+          timerActive: true
+        })
+      }
     })
     
     socket.on('timer_tick', (data) => {
-      // Only update timer if it's currently active (prevents old ticks from updating)
       const currentState = get()
-      if (currentState.timerActive) {
+      const timerRound = data.round
+      const currentRound = currentState.round
+      
+      // Only update timer if it's currently active and for the current round
+      if (currentState.timerActive && timerRound === currentRound) {
         set({ timerRemaining: data.remaining })
       }
     })
@@ -459,17 +488,14 @@ export const useGameStore = create((set, get) => ({
         return {
           pot: data.pot,
           players: updatedPlayers,
-          // Clear round data to prevent flashing
-          revealData: null,
-          showdownData: null,
-          showdownResult: null,
-          multipleHoldersResult: null,
+          // Keep revealData so continue button shows in RevealScreen
+          // Don't clear revealData, showdownData, etc. - let them persist so UI shows continue button
           timerActive: false,
           timerRemaining: 0,
           ...debtStatus
         }
       })
-      get().showNotification('Everyone dropped! Each player adds $0.50 to pot.', 'info')
+      get().showNotification('Everyone dropped! Pot carries forward to next round.', 'info')
     })
     
     socket.on('multiple_holders_result', (data) => {
@@ -637,8 +663,46 @@ export const useGameStore = create((set, get) => ({
         debtAmount: null,
         showBuyBackModal: false,
         needsBuyBackForAnte: false,
-        anteAmount: 0
+        anteAmount: 0,
+        activeEmotes: {},
+        showEmotePicker: false
       })
+    })
+    
+    socket.on('player_emote', (data) => {
+      const { playerId, emoteUrl } = data
+      const timestamp = Date.now()
+      
+      set(state => ({
+        activeEmotes: {
+          ...state.activeEmotes,
+          [playerId]: { emoteUrl, timestamp, fading: false }
+        }
+      }))
+      
+      // Start fade-out after 4.7 seconds (0.3s before removal for fade animation)
+      setTimeout(() => {
+        set(state => {
+          const newEmotes = { ...state.activeEmotes }
+          // Only start fade if it's still the same emote (timestamp matches)
+          if (newEmotes[playerId] && newEmotes[playerId].timestamp === timestamp) {
+            newEmotes[playerId] = { ...newEmotes[playerId], fading: true }
+          }
+          return { activeEmotes: newEmotes }
+        })
+        
+        // Remove emote after fade-out animation completes (0.3s)
+        setTimeout(() => {
+          set(state => {
+            const newEmotes = { ...state.activeEmotes }
+            // Only remove if it's still the same emote (timestamp matches)
+            if (newEmotes[playerId] && newEmotes[playerId].timestamp === timestamp) {
+              delete newEmotes[playerId]
+            }
+            return { activeEmotes: newEmotes }
+          })
+        }, 300)
+      }, 4700)
     })
     
     set({ socket })
@@ -797,22 +861,29 @@ export const useGameStore = create((set, get) => ({
   },
   
   leaveGame: () => {
-    const { debtAmount } = get()
+    const { debtAmount, gameState } = get()
     
-    // Prevent leaving if in debt
-    if (debtAmount && debtAmount > 0) {
+    // Always allow leaving from lobby, even if there's a debt state issue
+    // Only prevent leaving if actively playing and in debt
+    if (gameState === 'playing' && debtAmount && debtAmount > 0) {
       get().showNotification(`You cannot leave while in debt. You must buy back at least $${debtAmount.toFixed(2)} first.`, 'error')
       return
     }
     
     const { socket } = get()
     if (socket) {
-      socket.emit('leave_game')
+      try {
+        socket.emit('leave_game')
+      } catch (e) {
+        console.error('Error sending leave_game:', e)
+        // Continue anyway to reset local state
+      }
     }
     
-    // Clear localStorage when explicitly leaving
+    // Always clear localStorage when explicitly leaving
     clearSessionFromStorage()
     
+    // Always reset to landing page, even if socket fails
     set({
       gameState: 'landing',
       roomCode: null,
@@ -827,7 +898,13 @@ export const useGameStore = create((set, get) => ({
       debtAmount: null,
       showBuyBackModal: false,
       needsBuyBackForAnte: false,
-      anteAmount: 0
+      anteAmount: 0,
+      timerActive: false,
+      timerRemaining: 0,
+      revealData: null,
+      showdownData: null,
+      showdownResult: null,
+      multipleHoldersResult: null
     })
   },
   
@@ -836,5 +913,22 @@ export const useGameStore = create((set, get) => ({
     setTimeout(() => {
       set({ notification: null })
     }, 3000)
+  },
+  
+  // Emote actions
+  openEmotePicker: () => {
+    set({ showEmotePicker: true })
+  },
+  
+  closeEmotePicker: () => {
+    set({ showEmotePicker: false })
+  },
+  
+  sendEmote: (emoteUrl) => {
+    const { socket } = get()
+    if (socket) {
+      socket.emit('player_emote', { emoteUrl })
+    }
+    set({ showEmotePicker: false })
   }
 }))

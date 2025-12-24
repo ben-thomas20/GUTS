@@ -112,7 +112,8 @@ void GameManager::handleJoinRoom(const std::string& socketId, const nlohmann::js
         }
         
         // If reconnecting during active game, send current game state
-        if (game->state == GameState::PLAYING) {
+        // Only send round state if game is actually in a valid playing state
+        if (game->state == GameState::PLAYING && game->round > 0) {
             nlohmann::json playersJson = nlohmann::json::array();
             for (const auto& p : game->players) {
                 playersJson.push_back({
@@ -130,9 +131,9 @@ void GameManager::handleJoinRoom(const std::string& socketId, const nlohmann::js
                 {"players", playersJson}
             });
             
-            // Send player's cards if they have them
+            // Send player's cards if they have them (only if round is active)
             auto handIt = game->currentHands.find(player->id);
-            if (handIt != game->currentHands.end()) {
+            if (handIt != game->currentHands.end() && !game->currentHands.empty()) {
                 nlohmann::json cardsJson = nlohmann::json::array();
                 for (const auto& card : handIt->second) {
                     cardsJson.push_back(card.toJson());
@@ -144,9 +145,20 @@ void GameManager::handleJoinRoom(const std::string& socketId, const nlohmann::js
                     {"isNothingRound", game->isNothingRound},
                     {"playerId", player->id}
                 });
+                
+                // Only send timer if we're in an active round with cards
+                sendMessage_(socketId, "timer_started", {
+                    {"duration", 30},
+                    {"round", game->round}
+                });
             }
-            
-            sendMessage_(socketId, "timer_started", {{"duration", 30}});
+        } else if (game->state == GameState::PLAYING && game->round == 0) {
+            // Game state is invalid (playing but no round) - reset to lobby
+            game->state = GameState::LOBBY;
+            game->round = 0;
+            game->pot = 0.0;
+            game->decisions.clear();
+            game->currentHands.clear();
         }
     }
     
@@ -434,20 +446,36 @@ void GameManager::startNewRound(Game* game) {
 }
 
 void GameManager::startDecisionTimer(Game* game) {
-    broadcastToRoom_(game->roomCode, "timer_started", {{"duration", 30}});
+    int currentRound = game->round;
+    broadcastToRoom_(game->roomCode, "timer_started", {
+        {"duration", 30},
+        {"round", currentRound}
+    });
     
     // Start 30-second timer
-    std::thread([this, roomCode = game->roomCode]() {
+    std::thread([this, roomCode = game->roomCode, roundNumber = currentRound]() {
         for (int remaining = 30; remaining > 0; --remaining) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             Game* g = getGame(roomCode);
             if (!g) return;
             
-            broadcastToRoom_(roomCode, "timer_tick", {{"remaining", remaining - 1}});
+            // Only send tick if still on the same round
+            if (g->round == roundNumber) {
+                broadcastToRoom_(roomCode, "timer_tick", {
+                    {"remaining", remaining - 1},
+                    {"round", roundNumber}
+                });
+            } else {
+                // Round changed, stop this timer thread
+                return;
+            }
         }
         
         Game* g = getGame(roomCode);
-        if (g) resolveRound(g);
+        // Only resolve if still on the same round
+        if (g && g->round == roundNumber) {
+            resolveRound(g);
+        }
     }).detach();
 }
 
@@ -539,11 +567,8 @@ void GameManager::resolveRound(Game* game) {
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         
         if (holders.empty()) {
-            // Everyone dropped
-            for (auto* p : activePlayers) {
-                p->balance -= 0.50;
-                game->pot += 0.50;
-            }
+            // Everyone dropped - pot carries forward (ante was already collected at round start)
+            // No additional deduction needed
             
             broadcastToRoom_(game->roomCode, "round_reveal", {
                 {"decisions", decisionsJson},
@@ -617,15 +642,17 @@ void GameManager::handleMultipleHolders(Game* game, const std::vector<Player*>& 
         });
     
     Player* winner = evaluatedHands[0].player;
-    double winAmount = game->pot;
+    double currentPot = game->pot; // Store current pot before winner takes it
+    double winAmount = currentPot;
     winner->balance += winAmount;
     
     nlohmann::json loserPaymentsJson = nlohmann::json::array();
     double newPotAddition = 0.0;
     
+    // Each loser must match the current pot (before winner takes it)
     for (size_t i = 1; i < evaluatedHands.size(); ++i) {
         Player* loser = evaluatedHands[i].player;
-        double payment = game->pot;
+        double payment = currentPot; // Each loser pays the pot amount
         loser->balance -= payment;
         newPotAddition += payment;
         
@@ -636,6 +663,7 @@ void GameManager::handleMultipleHolders(Game* game, const std::vector<Player*>& 
         });
     }
     
+    // New pot is the sum of all loser payments
     game->pot = newPotAddition;
     
     // Check for debt
@@ -785,7 +813,7 @@ void GameManager::endGame(Game* game) {
             {"playerId", p.id},
             {"playerName", p.name},
             {"balance", p.balance},
-            {"profit", p.balance - game->buyInAmount}
+            {"profit", p.balance - p.buyInAmount}
         });
     }
     
@@ -974,7 +1002,9 @@ void GameManager::handleLeaveGame(const std::string& socketId) {
     
     Player* player = game->findPlayerById(playerIdIt->second);
     if (player) {
-        if (player->balance < 0) {
+        // Only prevent leaving due to debt if actively playing
+        // Always allow leaving from lobby (debt shouldn't exist in lobby anyway)
+        if (game->state == GameState::PLAYING && player->balance < 0) {
             char buf[256];
             snprintf(buf, sizeof(buf), 
                 "You cannot leave while in debt. You must buy back at least $%.2f first.",
@@ -1075,6 +1105,36 @@ void GameManager::handleDisconnect(const std::string& socketId) {
     
     socketToPlayerId_.erase(socketId);
     socketToRoomCode_.erase(socketId);
+}
+
+void GameManager::handlePlayerEmote(const std::string& socketId, const nlohmann::json& data) {
+    auto roomIt = socketToRoomCode_.find(socketId);
+    if (roomIt == socketToRoomCode_.end()) return;
+    
+    auto playerIdIt = socketToPlayerId_.find(socketId);
+    if (playerIdIt == socketToPlayerId_.end()) return;
+    
+    Game* game = getGame(roomIt->second);
+    if (!game) return;
+    
+    Player* player = game->findPlayerById(playerIdIt->second);
+    if (!player) return;
+    
+    // Validate emote URL (should be in format /emotes/emote-XX.gif)
+    if (!data.contains("emoteUrl")) return;
+    std::string emoteUrl = data["emoteUrl"];
+    
+    // Basic validation - ensure it's an emote path
+    if (emoteUrl.find("/emotes/emote-") == std::string::npos) {
+        return; // Invalid emote path
+    }
+    
+    // Broadcast emote to all players in the room
+    broadcastToRoom_(game->roomCode, "player_emote", {
+        {"playerId", player->id},
+        {"playerName", player->name},
+        {"emoteUrl", emoteUrl}
+    });
 }
 
 void GameManager::cleanupAbandonedGames() {

@@ -32,6 +32,7 @@ public:
     void handleLeaveGame(const std::string& socketId);
     void handleEndGame(const std::string& socketId);
     void handleDisconnect(const std::string& socketId);
+    void handlePlayerEmote(const std::string& socketId, const nlohmann::json& data);
     
     // Cleanup
     void cleanupAbandonedGames();
