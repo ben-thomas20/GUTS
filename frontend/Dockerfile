@@ -11,8 +11,14 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy source files
-COPY . .
+# Copy source files (explicitly include public folder for emotes)
+COPY src ./src
+COPY public ./public
+COPY index.html ./
+COPY vite.config.js ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+COPY package.json ./
 
 # Build argument for API URL - Railway automatically passes env vars as build args
 ARG VITE_API_URL
