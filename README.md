@@ -2,6 +2,7 @@
 
 A real-time multiplayer card game built with a high-performance C++ backend and React frontend. Players compete in fast-paced poker-style rounds where they must decide whether to hold or drop their three-card hand.
 
+Playable at: https://guts.up.railway.app/
 ## Overview
 
 GUTS is a house-rules poker variant designed for 2-8 players. Each round, players receive three cards and must decide within 30 seconds whether to stay in (hold) or fold (drop). The tension builds as players with the weakest hands face penalties, while a single holder must beat "THE DECK" to win the entire pot.
@@ -9,7 +10,7 @@ GUTS is a house-rules poker variant designed for 2-8 players. Each round, player
 ## Tech Stack
 
 **Backend (C++)**
-- Crow (HTTP/WebSocket framework)
+- Drogon (HTTP/WebSocket framework)
 - OpenSSL (cryptographic card shuffling)
 - nlohmann/json (JSON parsing)
 - CMake (build system)
