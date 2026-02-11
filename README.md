@@ -7,6 +7,8 @@ Playable at: guts-production.up.railway.app
 
 GUTS is a house-rules poker variant designed for 2-8 players. Each round, players receive three cards and must decide within 30 seconds whether to stay in (hold) or fold (drop). The tension builds as players with the weakest hands face penalties, while a single holder must beat "THE DECK" to win the entire pot.
 
+![demo1](emotes/demo.gif)
+
 ## Tech Stack
 
 **Backend (C++)**
