@@ -40,6 +40,7 @@ GUTS is a house-rules poker variant designed for 2-8 players. Each round, player
 ### Emotes:
 - players can select emotes to use at any point of the game
 - voice chat implementation coming soon
+
 ![demo3](emotes/emotescreen.gif) 
 
 ## Tech:
